@@ -15,9 +15,19 @@ import QuickRecord from './components/pages/QuickRecord';
 const AppContent = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [quickRecordType, setQuickRecordType] = useState(null);
-  const { isDarkMode, user, setUser } = useApp();
+  const { isDarkMode, user } = useApp();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [initialized, setInitialized] = useState(false);
+
+  // 修复暗黑模式：确保 html 元素正确设置 class
+  useEffect(() => {
+    const htmlElement = document.documentElement;
+    if (isDarkMode) {
+      htmlElement.classList.add('dark');
+    } else {
+      htmlElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   // Check onboarding status on mount
   useEffect(() => {

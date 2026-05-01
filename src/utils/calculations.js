@@ -1,12 +1,12 @@
 ﻿import { differenceInMonths, parse } from 'date-fns';
 
-// 計算 Louise 的月齡
+// 计算 Louise 的月龄
 export const calculateMonthAge = (birthdateStr) => {
   const birthdate = parse(birthdateStr, 'yyyy-MM-dd', new Date());
   return differenceInMonths(new Date(), birthdate);
 };
 
-// 格式化月齡為 "X月 Y週"
+// 格式化月龄为 "X月 Y週"
 export const formatAge = (birthdateStr) => {
   const birthdate = parse(birthdateStr, 'yyyy-MM-dd', new Date());
   const months = differenceInMonths(new Date(), birthdate);
@@ -14,7 +14,62 @@ export const formatAge = (birthdateStr) => {
   return `${months}個月${weeks}週`;
 };
 
-// 計算體重增長趨勢
+/**
+ * 计算宝宝月龄为 "x月x週x天" 格式
+ * @param {string} birthDate - ISO 日期字符串 (YYYY-MM-DD)
+ * @returns {string} 例如 "3月2週4天"
+ */
+export const formatAgeDetailed = (birthDate) => {
+  if (!birthDate || typeof birthDate !== 'string') {
+    return '年龄未知';
+  }
+
+  try {
+    const birth = new Date(birthDate + 'T00:00:00Z');
+    const today = new Date();
+
+    if (isNaN(birth.getTime())) {
+      return '日期无效';
+    }
+
+    const totalDays = Math.floor((today - birth) / (1000 * 60 * 60 * 24));
+
+    if (totalDays < 0) {
+      return '未出生';
+    }
+
+    const months = Math.floor(totalDays / 30);
+    const remainingDays = totalDays % 30;
+    const weeks = Math.floor(remainingDays / 7);
+    const days = remainingDays % 7;
+
+    return `${months}月${weeks}週${days}天`;
+  } catch (error) {
+    console.error('计算年龄出错:', error);
+    return '计算失败';
+  }
+};
+
+/**
+ * 简化版 - 只显示月龄
+ */
+export const formatAgeSimple = (birthDate) => {
+  if (!birthDate || typeof birthDate !== 'string') {
+    return '年龄未知';
+  }
+
+  try {
+    const birth = new Date(birthDate + 'T00:00:00Z');
+    const today = new Date();
+    const totalDays = Math.floor((today - birth) / (1000 * 60 * 60 * 24));
+    const months = Math.floor(totalDays / 30);
+    return `${months}個月`;
+  } catch (error) {
+    return '年龄未知';
+  }
+};
+
+// 计算体重增长趋势
 export const calculateWeightTrend = (records) => {
   if (records.length < 2) return null;
   const sorted = [...records].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -26,7 +81,7 @@ export const calculateWeightTrend = (records) => {
   };
 };
 
-// 轉換時間格式
+// 转换时间格式
 export const timeToMinutes = (timeStr) => {
   const [hours, minutes] = timeStr.split(':').map(Number);
   return hours * 60 + minutes;
