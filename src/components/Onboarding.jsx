@@ -103,7 +103,7 @@ const Onboarding = ({ onComplete }) => {
                   type="date"
                   value={formData.birthDate}
                   onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                  className="w-full lg-sm px-4 py-3 text-white/85 bg-transparent outline-none"
+                  className="w-full px-4 py-3 text-white/85 bg-white/6 border border-white/12 rounded-lg backdrop-blur-[12px] outline-none"
                 />
               </div>
 

@@ -149,6 +149,7 @@ const QuickRecord = ({ type, onClose }) => {
   };
 
   const inputClass = "w-full lg-sm px-4 py-3 text-white/85 placeholder-white/28 bg-transparent outline-none focus:ring-1 focus:ring-rose/30 rounded-lg";
+  const dateInputClass = "w-full px-4 py-3 text-white/85 bg-white/6 border border-white/12 rounded-lg backdrop-blur-[12px] outline-none focus:ring-1 focus:ring-rose/30";
   const labelClass = "block text-sm text-white/50 mb-2";
   const errorClass = "text-coral text-xs mt-1";
 
@@ -173,7 +174,7 @@ const QuickRecord = ({ type, onClose }) => {
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({...formData, date: e.target.value})}
-                  className={inputClass}
+                  className={dateInputClass}
                 />
               </div>
               {type === 'feeding' && (
