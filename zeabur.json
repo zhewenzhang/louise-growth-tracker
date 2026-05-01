@@ -1,18 +1,11 @@
 {
-  "schemaVersion": 1,
-  "type": "static",
-  "outputDirectory": "dist",
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
-  "nodeVersion": "18",
-  "routes": [
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ]
+  "$schema": "https://zeabur.com/schemas/zeabur.json",
+  "type": "dockerfile",
+  "dockerfile": "Dockerfile",
+  "build": {
+    "context": "."
+  },
+  "output": {
+    "port": 80
+  }
 }
