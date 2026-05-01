@@ -15,19 +15,19 @@ const Memories = ({ onOpenQuickRecord }) => {
         onClick={() => onOpenQuickRecord('milestone')}
         className="w-full glass-card p-3 text-rose font-bold hover:bg-white/5"
       >
-        + ĞÂÔöÀï³Ì±®
+        + æ–°å¢é‡Œç¨‹ç¢‘
       </button>
       <div className="space-y-3">
         {milestones.length === 0 ? (
           <EmptyState
-            icon="??"
-            title="ß€›]ÓĞÀï³Ì±®"
-            description="Ó›ä› Louise µÄµÚÒ»´ÎÎ¢Ğ¦¡¢·­Éí¡¢×ßÂ·µÈÖØÒª•r¿Ì"
+            icon="ğŸ‰"
+            title="é‚„æ²’æœ‰é‡Œç¨‹ç¢‘"
+            description="è¨˜éŒ„ Louise çš„ç¬¬ä¸€æ¬¡å¾®ç¬‘ã€ç¿»èº«ã€èµ°è·¯ç­‰é‡è¦æ™‚åˆ»"
           />
         ) : (
           [...milestones].sort((a, b) => new Date(b.date) - new Date(a.date)).map(m => (
-            <div 
-              key={m.id} 
+            <div
+              key={m.id}
               className="glass-card p-3 border-l-4 border-rose cursor-pointer hover:bg-white/5 transition-colors"
               onClick={() => { setEditingRecord(m); setEditType('milestone'); }}
             >
@@ -38,12 +38,6 @@ const Memories = ({ onOpenQuickRecord }) => {
                   <p className="text-white/28 text-xs">{m.date}</p>
                   {m.note && <p className="text-white/50 text-sm mt-1">{m.note}</p>}
                 </div>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setEditingRecord(m); setEditType('milestone'); }}
-                  className="text-white/28 hover:text-white/50"
-                >
-                  ??
-                </button>
               </div>
             </div>
           ))
@@ -58,19 +52,19 @@ const Memories = ({ onOpenQuickRecord }) => {
         onClick={() => onOpenQuickRecord('letter')}
         className="w-full glass-card p-3 text-rose font-bold hover:bg-white/5"
       >
-        ?? Œ‘½o Louise µÄĞÅ
+        âœï¸ å¯«çµ¦ Louise çš„ä¿¡
       </button>
       <div className="space-y-3">
         {letters.length === 0 ? (
           <EmptyState
-            icon="??"
-            title="ß€›]ÓĞĞÅ¼ş"
-            description="Œ‘½o Louise µÄĞÅ£¬µÈËıéL´óáá¿´"
+            icon="ğŸ’Œ"
+            title="é‚„æ²’æœ‰ä¿¡ä»¶"
+            description="å¯«çµ¦ Louise çš„ä¿¡ï¼Œç­‰å¥¹é•·å¤§å¾Œçœ‹"
           />
         ) : (
           [...letters].sort((a, b) => new Date(b.date) - new Date(a.date)).map(letter => (
-            <div 
-              key={letter.id} 
+            <div
+              key={letter.id}
               className="glass-card p-4 cursor-pointer hover:bg-white/5 transition-colors"
               onClick={() => { setEditingRecord(letter); setEditType('letter'); }}
             >
@@ -80,12 +74,6 @@ const Memories = ({ onOpenQuickRecord }) => {
                   <p className="text-white/28 text-xs mb-3">{letter.date}</p>
                   <p className="text-white/50 text-sm line-clamp-3">{letter.content}</p>
                 </div>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setEditingRecord(letter); setEditType('letter'); }}
-                  className="text-white/28 hover:text-white/50 ml-2"
-                >
-                  ??
-                </button>
               </div>
             </div>
           ))
@@ -96,9 +84,9 @@ const Memories = ({ onOpenQuickRecord }) => {
 
   return (
     <div className="flex-1 overflow-auto pb-24 p-4">
-      <h2 className="text-3xl font-bold text-white/85 mb-4">»Ø‘›</h2>
+      <h2 className="text-3xl font-bold text-white/85 mb-4">å›æ†¶</h2>
 
-      {/* Tab ÇĞ“Q */}
+      {/* Tab åˆ‡æ› */}
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setActiveTab('milestones')}
@@ -108,7 +96,7 @@ const Memories = ({ onOpenQuickRecord }) => {
               : 'lg text-white/50 hover:text-white/85'
           }`}
         >
-          ?? Àï³Ì±®
+          ğŸ‰ é‡Œç¨‹ç¢‘
         </button>
         <button
           onClick={() => setActiveTab('letters')}
@@ -118,14 +106,14 @@ const Memories = ({ onOpenQuickRecord }) => {
               : 'lg text-white/50 hover:text-white/85'
           }`}
         >
-          ?? ĞÅ¼ş
+          ğŸ’Œ ä¿¡ä»¶
         </button>
       </div>
 
-      {/* ƒÈÈİ */}
+      {/* å…§å®¹ */}
       {activeTab === 'milestones' ? <MilestonesTab /> : <LettersTab />}
 
-      {/* ¾İ‹Ä£‘B */}
+      {/* ç·¨è¼¯æ¨¡æ…‹ */}
       {editingRecord && (
         <EditModal
           record={editingRecord}
@@ -138,4 +126,3 @@ const Memories = ({ onOpenQuickRecord }) => {
 };
 
 export default Memories;
-

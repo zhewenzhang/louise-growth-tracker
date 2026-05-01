@@ -15,30 +15,30 @@ const Daily = ({ onOpenQuickRecord }) => {
         onClick={() => onOpenQuickRecord('feeding')}
         className="w-full glass-card p-3 text-rose font-bold hover:bg-white/5"
       >
-        + ĞÂÔöğjÊ³Ó›ä›
+        + æ–°å¢é¤µé£Ÿè¨˜éŒ„
       </button>
       <div className="space-y-2">
         {feedingRecords.length === 0 ? (
           <EmptyState
-            icon="??"
-            title="ß€›]ÓĞğjÊ³Ó›ä›"
-            description="Ó›ä›Ã¿´ÎğjÊ³µÄ•régºÍÄÌÁ¿"
+            icon="ğŸ¼"
+            title="é‚„æ²’æœ‰é¤µé£Ÿè¨˜éŒ„"
+            description="è¨˜éŒ„æ¯æ¬¡é¤µé£Ÿçš„æ™‚é–“å’Œå¥¶é‡"
           />
         ) : (
           [...feedingRecords].reverse().map(record => (
-            <div 
-              key={record.id} 
+            <div
+              key={record.id}
               className="glass-card p-3 cursor-pointer hover:bg-white/5 transition-colors"
               onClick={() => { setEditingRecord(record); setEditType('feeding'); }}
             >
               <div className="flex justify-between items-center">
                 <span className="text-white/50">{record.date} {record.time || ''}</span>
                 <span className="text-white/85 font-bold">
-                  {record.type === 'breastfeeding' ? `${record.duration}·ÖçŠ` : record.type === 'formula' ? `${record.amount}ml` : ''}
+                  {record.type === 'breastfeeding' ? `${record.duration}åˆ†é˜` : record.type === 'formula' ? `${record.amount}ml` : ''}
                 </span>
               </div>
               <p className="text-xs text-white/28 mt-1">
-                {record.type === 'breastfeeding' ? 'Ä¸Èé' : record.type === 'formula' ? 'Åä·½ÄÌ' : '¸±Ê³Æ·'}
+                {record.type === 'breastfeeding' ? 'æ¯ä¹³' : record.type === 'formula' ? 'é…æ–¹å¥¶' : 'å‰¯é£Ÿå“'}
               </p>
             </div>
           ))
@@ -53,30 +53,30 @@ const Daily = ({ onOpenQuickRecord }) => {
         onClick={() => onOpenQuickRecord('sleep')}
         className="w-full glass-card p-3 text-rose font-bold hover:bg-white/5"
       >
-        + ĞÂÔöË¯ÃßÓ›ä›
+        + æ–°å¢ç¡çœ è¨˜éŒ„
       </button>
       <div className="space-y-2">
         {sleepRecords.length === 0 ? (
           <EmptyState
-            icon="??"
-            title="ß€›]ÓĞË¯ÃßÓ›ä›"
-            description="Ó›ä›ŒšŒšµÄË¯Ãß•réLºÍÆ·Ù|"
+            icon="ğŸ˜´"
+            title="é‚„æ²’æœ‰ç¡çœ è¨˜éŒ„"
+            description="è¨˜éŒ„å¯¶å¯¶çš„ç¡çœ æ™‚é•·å’Œå“è³ª"
           />
         ) : (
           [...sleepRecords].reverse().map(record => (
-            <div 
-              key={record.id} 
+            <div
+              key={record.id}
               className="glass-card p-3 cursor-pointer hover:bg-white/5 transition-colors"
               onClick={() => { setEditingRecord(record); setEditType('sleep'); }}
             >
               <div className="flex justify-between items-center">
                 <span className="text-white/50">{record.date}</span>
                 <span className="text-white/85 font-bold">
-                  {Math.floor(record.duration / 60)}Ğ¡•r {record.duration % 60}·Ö
+                  {Math.floor(record.duration / 60)}å°æ™‚ {record.duration % 60}åˆ†
                 </span>
               </div>
               <p className="text-xs text-white/28 mt-1">
-                Æ·Ù|: {record.quality === 'good' ? '?? ºÜºÃ' : record.quality === 'normal' ? '?? Õı³£' : '?? ²»¼Ñ'}
+                å“è³ª: {record.quality === 'good' ? 'ğŸ˜Š å¾ˆå¥½' : record.quality === 'normal' ? 'ğŸ˜Œ æ­£å¸¸' : 'ğŸ˜£ ä¸ä½³'}
               </p>
             </div>
           ))
@@ -87,9 +87,9 @@ const Daily = ({ onOpenQuickRecord }) => {
 
   return (
     <div className="flex-1 overflow-auto pb-24 p-4">
-      <h2 className="text-3xl font-bold text-white/85 mb-4">ÈÕ³£Ó›ä›</h2>
+      <h2 className="text-3xl font-bold text-white/85 mb-4">æ—¥å¸¸è¨˜éŒ„</h2>
 
-      {/* Tab ÇĞ“Q */}
+      {/* Tab åˆ‡æ› */}
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setActiveTab('feeding')}
@@ -99,7 +99,7 @@ const Daily = ({ onOpenQuickRecord }) => {
               : 'lg text-white/50 hover:text-white/85'
           }`}
         >
-          ?? ğjÊ³
+          ğŸ¼ é¤µé£Ÿ
         </button>
         <button
           onClick={() => setActiveTab('sleep')}
@@ -109,14 +109,14 @@ const Daily = ({ onOpenQuickRecord }) => {
               : 'lg text-white/50 hover:text-white/85'
           }`}
         >
-          ?? Ë¯Ãß
+          ğŸ˜´ ç¡çœ 
         </button>
       </div>
 
-      {/* ƒÈÈİ…^Óò */}
+      {/* å…§å®¹å€åŸŸ */}
       {activeTab === 'feeding' ? <FeedingTab /> : <SleepTab />}
 
-      {/* ¾İ‹Ä£‘B */}
+      {/* ç·¨è¼¯æ¨¡æ…‹ */}
       {editingRecord && (
         <EditModal
           record={editingRecord}
@@ -129,4 +129,3 @@ const Daily = ({ onOpenQuickRecord }) => {
 };
 
 export default Daily;
-

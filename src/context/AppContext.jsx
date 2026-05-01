@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useEffect } from 'react';
+﻿import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { isSupabaseAvailable, syncUserData, loadUserData, syncGrowthRecords, loadGrowthRecords, subscribeToChanges } from '../services/syncService';
 
@@ -14,61 +14,6 @@ export const AppProvider = ({ children }) => {
 
   // 成長記錄
   const [growthRecords, setGrowthRecords] = useLocalStorage('louise_growth', []);
-
-  // 初始化：從 Supabase 加載數據（如果可用）
-  useEffect(() => {
-    let subscription = null;
-    
-    const initSupabase = async () => {
-      if (isSupabaseAvailable()) {
-        console.log('🔄 初始化 Supabase...');
-        
-        // 加載用戶數據
-        const remoteUser = await loadUserData();
-        if (remoteUser && !user.name) {
-          setUser(remoteUser);
-        }
-        
-        // 加載成長記錄
-        const remoteRecords = await loadGrowthRecords();
-        if (remoteRecords.length > 0 && growthRecords.length === 0) {
-          setGrowthRecords(remoteRecords);
-        }
-        
-        // 訂閱實時變化
-        subscription = subscribeToChanges(async () => {
-          // 收到遠程更新時重新加載
-          const updatedRecords = await loadGrowthRecords();
-          setGrowthRecords(updatedRecords);
-        });
-      } else {
-        console.log('📱 Supabase 未配置 - 使用本地模式');
-        console.log('💡 配置方法：複製 .env.example 到 .env 並填寫 Supabase 信息');
-      }
-    };
-    
-    initSupabase();
-    
-    return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
-    };
-  }, []);
-
-  // 當用戶數據變化時同步到 Supabase
-  useEffect(() => {
-    if (user.name && user.birthDate) {
-      syncUserData(user);
-    }
-  }, [user]);
-
-  // 當成長記錄變化時同步到 Supabase
-  useEffect(() => {
-    if (growthRecords.length > 0) {
-      syncGrowthRecords(growthRecords);
-    }
-  }, [growthRecords]);
 
   // 餵食記錄
   const [feedingRecords, setFeedingRecords] = useLocalStorage('louise_feeding', []);
@@ -146,6 +91,77 @@ export const AppProvider = ({ children }) => {
       return false;
     }
   };
+
+  // 修復循環依賴：使用 ref 追蹤初始化狀態
+  const initRef = useRef(false);
+  const subscriptionRef = useRef(null);
+
+  // 修復：初始化邏輯 - 只運行一次
+  useEffect(() => {
+    if (initRef.current) return;
+    initRef.current = true;
+
+    let subscription = null;
+
+    const initSupabase = async () => {
+      if (isSupabaseAvailable()) {
+        console.log('🔄 初始化 Supabase...');
+
+        try {
+          // 加載用戶數據（只在本地為空時）
+          const remoteUser = await loadUserData();
+          if (remoteUser && !user.name) {
+            setUser(remoteUser);
+          }
+
+          // 加載成長記錄（只在本地為空時）
+          const remoteRecords = await loadGrowthRecords();
+          if (remoteRecords.length > 0 && growthRecords.length === 0) {
+            setGrowthRecords(remoteRecords);
+          }
+
+          // 訂閱實時變化
+          subscription = subscribeToChanges(async () => {
+            const updatedRecords = await loadGrowthRecords();
+            setGrowthRecords(updatedRecords);
+          });
+
+          subscriptionRef.current = subscription;
+          console.log('✅ Supabase 初始化完成');
+        } catch (error) {
+          console.error('❌ Supabase 初始化失敗:', error);
+          console.log('📱 使用本地模式');
+        }
+      } else {
+        console.log('📱 Supabase 未配置 - 使用本地模式');
+        console.log('💡 配置方法：複製 .env.example 到 .env 並填寫 Supabase 信息');
+      }
+    };
+
+    initSupabase();
+
+    return () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+      }
+    };
+  }, []); // 空依賴數組 - 只運行一次
+
+  // 修復：用戶數據同步 - 只在初始化後執行
+  useEffect(() => {
+    if (!initRef.current) return;
+    if (!user.name || !user.birthDate) return;
+
+    syncUserData(user);
+  }, [user]);
+
+  // 修復：成長記錄同步 - 只在初始化後執行
+  useEffect(() => {
+    if (!initRef.current) return;
+    if (growthRecords.length === 0) return;
+
+    syncGrowthRecords(growthRecords);
+  }, [growthRecords]);
 
   const value = {
     user, setUser,

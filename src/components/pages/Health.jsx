@@ -4,17 +4,17 @@ import EditModal from '../shared/EditModal';
 import EmptyState from '../shared/EmptyState';
 
 const vaccinesList = [
-  { id: 'vaccine_1', name: 'B¸ÎÒßÃç', months: [0, 1, 6] },
-  { id: 'vaccine_2', name: '¿¨½éÃç', months: [0] },
-  { id: 'vaccine_3', name: '¼¹Ëè»ÒÙ|Ñ×', months: [2, 4, 6] },
-  { id: 'vaccine_4', name: '°ÙÈÕ¿È/°×ºí/ÆÆ‚ûïL', months: [2, 4, 6] },
-  { id: 'vaccine_5', name: 'Ğ¡ƒºÂé¯w', months: [2, 4, 6] },
-  { id: 'vaccine_6', name: 'Á÷¸ĞÊÈÑª—U¾ú', months: [2, 4, 6] },
-  { id: 'vaccine_7', name: '·ÎÑ×Çò¾ú', months: [2, 4, 6] },
-  { id: 'vaccine_8', name: 'ÂéÕî/ÈùÏÙÑ×/ïLÕî', months: [12, 18] },
-  { id: 'vaccine_9', name: 'İ† î²¡¶¾', months: [2, 4] },
-  { id: 'vaccine_10', name: 'Ë®¶»', months: [12] },
-  { id: 'vaccine_11', name: '¸ÎÑ×A', months: [12] }
+  { id: 'vaccine_1', name: 'Bè‚ç–«è‹—', months: [0, 1, 6] },
+  { id: 'vaccine_2', name: 'å¡ä»‹è‹—', months: [0] },
+  { id: 'vaccine_3', name: 'è„Šé«“ç°è³ªç‚', months: [2, 4, 6] },
+  { id: 'vaccine_4', name: 'ç™¾æ—¥å’³/ç™½å–‰/ç ´å‚·é¢¨', months: [2, 4, 6] },
+  { id: 'vaccine_5', name: 'å°å…’éº»ç—º', months: [2, 4, 6] },
+  { id: 'vaccine_6', name: 'æµæ„Ÿå—œè¡€æ¡¿èŒ', months: [2, 4, 6] },
+  { id: 'vaccine_7', name: 'è‚ºç‚çƒèŒ', months: [2, 4, 6] },
+  { id: 'vaccine_8', name: 'éº»ç–¹/è…®è…ºç‚/é¢¨ç–¹', months: [12, 18] },
+  { id: 'vaccine_9', name: 'è¼ªç‹€ç—…æ¯’', months: [2, 4] },
+  { id: 'vaccine_10', name: 'æ°´ç—˜', months: [12] },
+  { id: 'vaccine_11', name: 'è‚ç‚A', months: [12] }
 ];
 
 const Health = ({ onOpenQuickRecord }) => {
@@ -53,19 +53,19 @@ const Health = ({ onOpenQuickRecord }) => {
         onClick={() => onOpenQuickRecord('health')}
         className="w-full glass-card p-3 text-rose font-bold hover:bg-white/5"
       >
-        + ĞÂÔö½¡¿µÓ›ä›
+        + æ–°å¢å¥åº·è¨˜éŒ„
       </button>
       <div className="space-y-2">
         {healthRecords.length === 0 ? (
           <EmptyState
-            icon="??"
-            title="ß€›]ÓĞ½¡¿µÓ›ä›"
-            description="Ó›ä›¾Íát¡¢ÓÃË¡¢ÒßÃçµÈĞÅÏ¢"
+            icon="ğŸ¥"
+            title="é‚„æ²’æœ‰å¥åº·è¨˜éŒ„"
+            description="è¨˜éŒ„å°±é†«ã€ç”¨è—¥ã€ç–«è‹—ç­‰ä¿¡æ¯"
           />
         ) : (
           [...healthRecords].reverse().map(record => (
-            <div 
-              key={record.id} 
+            <div
+              key={record.id}
               className="glass-card p-3 cursor-pointer hover:bg-white/5 transition-colors"
               onClick={() => setEditingRecord(record)}
             >
@@ -83,9 +83,9 @@ const Health = ({ onOpenQuickRecord }) => {
 
   return (
     <div className="flex-1 overflow-auto pb-24 p-4">
-      <h2 className="text-3xl font-bold text-white/85 mb-4">½¡¿µ¹ÜÀí</h2>
+      <h2 className="text-3xl font-bold text-white/85 mb-4">å¥åº·ç®¡ç†</h2>
 
-      {/* Tab ÇĞ“Q */}
+      {/* Tab åˆ‡æ› */}
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setActiveTab('vaccines')}
@@ -95,7 +95,7 @@ const Health = ({ onOpenQuickRecord }) => {
               : 'lg text-white/50 hover:text-white/85'
           }`}
         >
-          ?? ÒßÃç
+          ğŸ’‰ ç–«è‹—
         </button>
         <button
           onClick={() => setActiveTab('checkups')}
@@ -105,14 +105,14 @@ const Health = ({ onOpenQuickRecord }) => {
               : 'lg text-white/50 hover:text-white/85'
           }`}
         >
-          ?? ™z²é
+          ğŸ¥ æª¢æŸ¥
         </button>
       </div>
 
-      {/* ƒÈÈİ */}
+      {/* å…§å®¹ */}
       {activeTab === 'vaccines' ? <VaccinesTab /> : <HealthTab />}
 
-      {/* ¾İ‹Ä£‘B */}
+      {/* ç·¨è¼¯æ¨¡æ…‹ */}
       {editingRecord && (
         <EditModal
           record={editingRecord}
@@ -125,4 +125,3 @@ const Health = ({ onOpenQuickRecord }) => {
 };
 
 export default Health;
-
