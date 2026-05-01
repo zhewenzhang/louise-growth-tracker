@@ -70,29 +70,44 @@ export const AppProvider = ({ children }) => {
   };
 
   // 導入數據
-  const importData = (jsonString) => {
+  const importData = (jsonData) => {
     try {
-      const data = JSON.parse(jsonString);
-
-      // 驗證數據結構
-      if (!data.user || !Array.isArray(data.growthRecords)) {
-        throw new Error('無效的備份文件格式');
+      // 验证输入类型
+      if (typeof jsonData === 'string') {
+        jsonData = JSON.parse(jsonData);
       }
 
-      // 導入所有數據
-      setUser(data.user);
-      setGrowthRecords(data.growthRecords || []);
-      setFeedingRecords(data.feedingRecords || []);
-      setSleepRecords(data.sleepRecords || []);
-      setHealthRecords(data.healthRecords || []);
-      setVaccineRecords(data.vaccineRecords || []);
-      setMilestones(data.milestones || []);
-      setLetters(data.letters || []);
+      // 验证数据结构
+      if (!jsonData || typeof jsonData !== 'object') {
+        throw new Error('無效的數據格式');
+      }
+
+      if (!jsonData.user || typeof jsonData.user !== 'object') {
+        throw new Error('缺少用戶信息');
+      }
+
+      // 验证数组字段
+      const arrayFields = ['growthRecords', 'feedingRecords', 'sleepRecords', 'healthRecords', 'milestones', 'letters'];
+      for (const field of arrayFields) {
+        if (jsonData[field] && !Array.isArray(jsonData[field])) {
+          throw new Error(`${field} 格式無效`);
+        }
+      }
+
+      // 导入所有数据
+      setUser(jsonData.user || { name: '', birthDate: '', gender: '' });
+      setGrowthRecords(jsonData.growthRecords || []);
+      setFeedingRecords(jsonData.feedingRecords || []);
+      setSleepRecords(jsonData.sleepRecords || []);
+      setHealthRecords(jsonData.healthRecords || []);
+      setVaccineRecords(jsonData.vaccineRecords || []);
+      setMilestones(jsonData.milestones || []);
+      setLetters(jsonData.letters || []);
 
       return true;
     } catch (error) {
       console.error('導入失敗:', error);
-      return false;
+      throw error; // 重新抛出错误以便上层处理
     }
   };
 
