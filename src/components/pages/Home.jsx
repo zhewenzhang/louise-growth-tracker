@@ -6,7 +6,7 @@ import Icons from '../shared/Icons';
 import EmptyState from '../shared/EmptyState';
 
 const Home = ({ onOpenQuickRecord }) => {
-  const { user, growthRecords, feedingRecords, sleepRecords, milestones, isDarkMode, setIsDarkMode, exportData, importData } = useApp();
+  const { user, growthRecords, feedingRecords, sleepRecords, milestones, exportData, importData } = useApp();
   const { success, error } = useToast();
 
   const weightRecords = growthRecords.filter(r => r.type === 'weight');
@@ -31,18 +31,6 @@ const Home = ({ onOpenQuickRecord }) => {
     <div className="flex-1 overflow-auto pb-24">
       {/* Hero Section — growth poster style */}
       <div className="px-4 pt-6 pb-8">
-        {/* Header with greeting and theme toggle */}
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-white/50 text-sm">{greeting} 👋</p>
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-            title={isDarkMode ? '切換到淺色模式' : '切換到深色模式'}
-          >
-            <Icons.theme className="w-5 h-5 text-white/50" />
-          </button>
-        </div>
-
         {/* Louise's name as hero — big, bold, central */}
         <h1 className="text-white mb-2" style={{ fontFamily: 'var(--font-display)', fontSize: '3.5rem', fontWeight: '700', letterSpacing: '-0.02em' }}>
           {user.name}
