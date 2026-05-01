@@ -1,7 +1,7 @@
 ﻿import React from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import { useToast } from '../../context/ToastContext';
-import { calculateMonthAge, formatAge, calculateWeightTrend } from '../../utils/calculations';
+import { calculateMonthAge, formatAgeDetailed, calculateWeightTrend } from '../../utils/calculations';
 import Icons from '../shared/Icons';
 import EmptyState from '../shared/EmptyState';
 
@@ -17,7 +17,7 @@ const Home = ({ onOpenQuickRecord }) => {
   const latestHeight = heightRecords.length > 0 ? heightRecords[heightRecords.length - 1] : null;
   const latestHead = headRecords.length > 0 ? headRecords[headRecords.length - 1] : null;
 
-  const ageDisplay = formatAge(user.birthDate);
+  const ageDisplay = user.birthDate ? formatAgeDetailed(user.birthDate) : '未記錄';
 
   const lastFeeding = feedingRecords.length > 0
     ? new Date(feedingRecords[feedingRecords.length - 1].date)

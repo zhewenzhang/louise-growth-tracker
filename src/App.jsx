@@ -22,9 +22,12 @@ const AppContent = () => {
   // 修复暗黑模式：确保 html 元素正确设置 class
   useEffect(() => {
     const htmlElement = document.documentElement;
+    // 初始化时设置
     if (isDarkMode) {
       htmlElement.classList.add('dark');
+      htmlElement.classList.remove('light');
     } else {
+      htmlElement.classList.add('light');
       htmlElement.classList.remove('dark');
     }
   }, [isDarkMode]);

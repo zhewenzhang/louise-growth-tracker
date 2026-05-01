@@ -172,16 +172,12 @@ button:disabled {
     --bg-glass: rgba(232, 144, 154, 0.04);
     --border-glass: rgba(232, 144, 154, 0.12);
   }
-  body {
-    background: linear-gradient(135deg, #f5f1ed 0%, #ece8e3 100%);
-    color: var(--text-primary);
-  }
 }
 
 .dark { color-scheme: dark; }
 .light { color-scheme: light; }
-.light body { background: linear-gradient(135deg, #f5f1ed 0%, #ece8e3 100%); }
-.dark body { background: linear-gradient(135deg, #1e0d14 0%, #2d1420 100%); }
+html.light body { background: linear-gradient(135deg, #f5f1ed 0%, #ece8e3 100%); }
+html.dark body { background: linear-gradient(135deg, #1e0d14 0%, #2d1420 100%); }
 
 /* ============================================
    基础重置
