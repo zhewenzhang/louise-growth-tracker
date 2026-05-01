@@ -173,17 +173,51 @@ const Home = ({ onOpenQuickRecord }) => {
                 input.type = 'file';
                 input.accept = '.json';
                 input.onchange = (e) => {
-                  const file = e.target.files[0];
-                  const reader = new FileReader();
-                  reader.onload = (event) => {
-                    if (importData(event.target.result)) {
-                      success('數據導入成功！');
-                      setTimeout(() => window.location.reload(), 1000);
-                    } else {
-                      error('數據導入失敗，請檢查文件格式');
+                  try {
+                    const file = e.target.files?.[0];
+                    if (!file) {
+                      error('未選擇文件');
+                      return;
                     }
-                  };
-                  reader.readAsText(file);
+
+                    const reader = new FileReader();
+
+                    reader.onload = (event) => {
+                      try {
+                        const content = event.target?.result;
+                        if (typeof content !== 'string') {
+                          error('文件內容無效');
+                          return;
+                        }
+
+                        const data = JSON.parse(content);
+
+                        if (!data.user || !Array.isArray(data.growthRecords)) {
+                          throw new Error('無效的備份文件格式');
+                        }
+
+                        if (importData(data)) {
+                          success('數據導入成功！');
+                          setTimeout(() => window.location.reload(), 1000);
+                        } else {
+                          error('數據導入失敗，請檢查文件格式');
+                        }
+                      } catch (parseError) {
+                        console.error('解析JSON失敗:', parseError);
+                        error(`導入失敗: ${parseError.message}`);
+                      }
+                    };
+
+                    reader.onerror = () => {
+                      console.error('文件讀取失敗');
+                      error('無法讀取文件，請重試');
+                    };
+
+                    reader.readAsText(file);
+                  } catch (err) {
+                    console.error('文件上傳錯誤:', err);
+                    error('操作失敗: ' + err.message);
+                  }
                 };
                 input.click();
               }}

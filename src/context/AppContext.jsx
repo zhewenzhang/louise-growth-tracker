@@ -48,6 +48,10 @@ export const AppProvider = ({ children }) => {
   // 主題模式
   const [isDarkMode, setIsDarkMode] = useLocalStorage('louise_dark_mode', true);
 
+  // 同步狀態跟蹤
+  const [syncStatus, setSyncStatus] = useLocalStorage('louise_sync_status', 'idle');
+  const [syncError, setSyncError] = useLocalStorage('louise_sync_error', null);
+
   // 導出數據
   const exportData = () => {
     const allData = {
@@ -106,6 +110,7 @@ export const AppProvider = ({ children }) => {
     const initSupabase = async () => {
       if (isSupabaseAvailable()) {
         console.log('🔄 初始化 Supabase...');
+        setSyncStatus('connecting');
 
         try {
           // 加載用戶數據（只在本地為空時）
@@ -122,17 +127,30 @@ export const AppProvider = ({ children }) => {
 
           // 訂閱實時變化
           subscription = subscribeToChanges(async () => {
-            const updatedRecords = await loadGrowthRecords();
-            setGrowthRecords(updatedRecords);
+            try {
+              const updatedRecords = await loadGrowthRecords();
+              setGrowthRecords(updatedRecords);
+              setSyncStatus('synced');
+              setSyncError(null);
+            } catch (subError) {
+              console.error('❌ 實時訂閱更新失敗:', subError);
+              setSyncError(subError.message);
+              setSyncStatus('error');
+            }
           });
 
           subscriptionRef.current = subscription;
+          setSyncStatus('synced');
+          setSyncError(null);
           console.log('✅ Supabase 初始化完成');
         } catch (error) {
           console.error('❌ Supabase 初始化失敗:', error);
+          setSyncError(error.message);
+          setSyncStatus('offline');
           console.log('📱 使用本地模式');
         }
       } else {
+        setSyncStatus('unconfigured');
         console.log('📱 Supabase 未配置 - 使用本地模式');
         console.log('💡 配置方法：複製 .env.example 到 .env 並填寫 Supabase 信息');
       }
@@ -174,7 +192,9 @@ export const AppProvider = ({ children }) => {
     letters, setLetters,
     isDarkMode, setIsDarkMode,
     exportData,
-    importData
+    importData,
+    syncStatus,
+    syncError
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

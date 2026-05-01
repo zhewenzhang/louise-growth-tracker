@@ -69,72 +69,77 @@ const QuickRecord = ({ type, onClose }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
-    const id = Date.now();
+    try {
+      const id = Date.now();
 
-    const typeLabels = {
-      weight: '體重', height: '身高', head: '頭圍',
-      feeding: '餵食', sleep: '睡眠', milestone: '里程碑',
-      letter: '信件', health: '健康記錄'
-    };
+      const typeLabels = {
+        weight: '體重', height: '身高', head: '頭圍',
+        feeding: '餵食', sleep: '睡眠', milestone: '里程碑',
+        letter: '信件', health: '健康記錄'
+      };
 
-    switch(type) {
-      case 'weight':
-        setGrowthRecords([...growthRecords, {
-          id, date: formData.date, type: 'weight', value: parseFloat(formData.value), unit: 'kg'
-        }]);
-        break;
-      case 'height':
-        setGrowthRecords([...growthRecords, {
-          id, date: formData.date, type: 'height', value: parseFloat(formData.value), unit: 'cm'
-        }]);
-        break;
-      case 'head':
-        setGrowthRecords([...growthRecords, {
-          id, date: formData.date, type: 'headCircumference', value: parseFloat(formData.value), unit: 'cm'
-        }]);
-        break;
-      case 'feeding':
-        setFeedingRecords([...feedingRecords, {
-          id, date: formData.date, time: formData.time, type: formData.feedingType,
-          duration: formData.duration ? parseInt(formData.duration) : null,
-          amount: formData.amount ? parseInt(formData.amount) : null
-        }]);
-        break;
-      case 'sleep':
-        setSleepRecords([...sleepRecords, {
-          id, date: formData.date, startTime: formData.startTime,
-          endTime: formData.endTime || '', duration: parseInt(formData.duration),
-          quality: formData.quality
-        }]);
-        break;
-      case 'milestone':
-        setMilestones([...milestones, {
-          id, date: formData.date, title: formData.title,
-          icon: formData.icon || '🎉', note: formData.note
-        }]);
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 2000);
-        break;
-      case 'letter':
-        setLetters([...letters, {
-          id, date: formData.date, title: formData.title, content: formData.content
-        }]);
-        break;
-      case 'health':
-        setHealthRecords([...healthRecords, {
-          id, date: formData.date, type: formData.healthType || '其他', note: formData.note
-        }]);
-        break;
-      default:
-        break;
+      switch(type) {
+        case 'weight':
+          setGrowthRecords([...growthRecords, {
+            id, date: formData.date, type: 'weight', value: parseFloat(formData.value), unit: 'kg'
+          }]);
+          break;
+        case 'height':
+          setGrowthRecords([...growthRecords, {
+            id, date: formData.date, type: 'height', value: parseFloat(formData.value), unit: 'cm'
+          }]);
+          break;
+        case 'head':
+          setGrowthRecords([...growthRecords, {
+            id, date: formData.date, type: 'headCircumference', value: parseFloat(formData.value), unit: 'cm'
+          }]);
+          break;
+        case 'feeding':
+          setFeedingRecords([...feedingRecords, {
+            id, date: formData.date, time: formData.time, type: formData.feedingType,
+            duration: formData.duration ? parseInt(formData.duration) : null,
+            amount: formData.amount ? parseInt(formData.amount) : null
+          }]);
+          break;
+        case 'sleep':
+          setSleepRecords([...sleepRecords, {
+            id, date: formData.date, startTime: formData.startTime,
+            endTime: formData.endTime || '', duration: parseInt(formData.duration),
+            quality: formData.quality
+          }]);
+          break;
+        case 'milestone':
+          setMilestones([...milestones, {
+            id, date: formData.date, title: formData.title,
+            icon: formData.icon || '🎉', note: formData.note
+          }]);
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 2000);
+          break;
+        case 'letter':
+          setLetters([...letters, {
+            id, date: formData.date, title: formData.title, content: formData.content
+          }]);
+          break;
+        case 'health':
+          setHealthRecords([...healthRecords, {
+            id, date: formData.date, type: formData.healthType || '其他', note: formData.note
+          }]);
+          break;
+        default:
+          throw new Error(`未知的記錄類型: ${type}`);
+      }
+
+      success(`已記錄${typeLabels[type]}`);
+      onClose();
+    } catch (err) {
+      console.error('記錄保存失敗:', err);
+      error(`保存失敗: ${err.message}`);
     }
-
-    success(`已記錄${typeLabels[type]}`);
-    onClose();
   };
 
   const typeTitles = {
