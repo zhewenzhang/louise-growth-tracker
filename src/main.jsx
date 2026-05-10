@@ -12,9 +12,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 // 註冊 Service Worker (PWA)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/louise-growth-tracker/sw.js').then(
-      () => console.log('SW registered'),
-      (err) => console.log('SW registration failed:', err)
+    navigator.serviceWorker.register('/louise-growth-tracker/sw.js').catch(
+      (err) => console.warn('SW registration failed:', err)
     );
   });
 }

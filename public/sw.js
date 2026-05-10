@@ -1,38 +1,31 @@
-const CACHE_NAME = 'louise-v1';
-const ASSETS = [
-  '/louise-growth-tracker/',
-];
+const CACHE = 'louise-v2';
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-  );
-  self.skipWaiting();
-});
+// 安裝時：無需預快取，首次請求自動快取
+self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('fetch', (e) => {
-  // 只快取靜態資源，API 請求走網路
-  if (e.request.url.includes('firestore') || e.request.url.includes('googleapis')) {
-    return fetch(e.request);
+  const { url } = e.request;
+
+  // Firebase API 請求不快取
+  if (url.includes('firestore') || url.includes('googleapis')) {
+    return;
   }
+
+  // 靜態資源：cache-first + 後台更新
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      const fetched = fetch(e.request).then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-        }
-        return response;
+    caches.open(CACHE).then(async (cache) => {
+      const cached = await cache.match(e.request);
+      const fetchPromise = fetch(e.request).then((res) => {
+        if (res.ok && res.type === 'basic') cache.put(e.request, res.clone());
+        return res;
       });
-      return cached || fetched;
+      return cached || fetchPromise;
     })
   );
 });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
-    })
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
   );
 });

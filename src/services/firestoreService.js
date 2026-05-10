@@ -1,5 +1,5 @@
 import { db } from '../lib/firebase';
-import { doc, setDoc, getDoc, collection, addDoc, updateDoc, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 
 /**
  * Firestore 數據服務層
