@@ -8,29 +8,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        /* 主色層級 - 玫瑰粉系 */
-        rose: '#e8909a',           // 主色
-        'rose-light': '#f0b8c0',   // 淺色版本
-        'rose-deep': '#c06878',    // 深色版本
-
-        /* 強調色 */
-        'accent-warm': '#f5a85c',  // 溫暖強調
-        'accent-cool': '#7acaca',  // 冷色強調
-
-        /* 其他原有顏色 */
-        peach: '#e8a87c',
-        teal: '#7acaca',
-        mauve: '#b09acc',
-        sage: '#8ac8a0',
-        amber: '#e8c880',
-        sky: '#80b8e0',
-        coral: '#e89090',
-
-        /* 背景色 */
-        'bg-dark': '#1e0d14',
-        'bg-light': '#f5f1ed',
-        'bg-secondary': '#2d1420',
-        'bg-tertiary': '#3a1f2d',
+        /* 保留給未來使用 */
       },
       spacing: {
         /* 8px 基數系統 */
