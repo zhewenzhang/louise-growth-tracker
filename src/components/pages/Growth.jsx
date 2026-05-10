@@ -1,135 +1,189 @@
 ﻿import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
-import GrowthChart from '../shared/GrowthChart';
-import EditModal from '../shared/EditModal';
-import EmptyState from '../shared/EmptyState';
-import { whoWeightData, whoHeightData, whoHeadCircumferenceData, calculatePercentile } from '../../utils/whoData';
+
+const TABS = [
+  { id: 'weight', label: '⚖️ 體重', unit: 'kg', step: '0.001', placeholder: '例如：3.256', showTime: false },
+  { id: 'height', label: '📐 身高', unit: 'cm', step: '0.1', placeholder: '例如：52.3', showTime: false },
+  { id: 'headCircumference', label: '👶 頭圍', unit: 'cm', step: '0.1', placeholder: '例如：34.5', showTime: false },
+  { id: 'chestCircumference', label: '👕 胸圍', unit: 'cm', step: '0.1', placeholder: '例如：33.0', showTime: false },
+  { id: 'feeding', label: '🍼 奶量', unit: 'ml', step: '1', placeholder: '例如：60', showTime: true, showFeeding: true },
+];
 
 const Growth = () => {
-  const { user, growthRecords } = useApp();
+  const { growthRecords, addGrowthRecord, deleteGrowthRecord } = useApp();
   const [activeTab, setActiveTab] = useState('weight');
-  const [editingRecord, setEditingRecord] = useState(null);
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
+  const [value, setValue] = useState('');
+  const [breastMilk, setBreastMilk] = useState('');
+  const [formulaMilk, setFormulaMilk] = useState('');
 
-  const recordsByType = {
-    weight: growthRecords.filter(r => r.type === 'weight'),
-    height: growthRecords.filter(r => r.type === 'height'),
-    headCircumference: growthRecords.filter(r => r.type === 'headCircumference')
-  };
+  const activeTabInfo = TABS.find(t => t.id === activeTab);
 
-  const dataMap = {
-    weight: { who: whoWeightData, label: '體重 (kg)', color: '#e8909a', unit: 'kg' },
-    height: { who: whoHeightData, label: '身高 (cm)', color: '#7acaca', unit: 'cm' },
-    headCircumference: { who: whoHeadCircumferenceData, label: '頭圍 (cm)', color: '#e8a87c', unit: 'cm' }
-  };
-
-  const currentData = dataMap[activeTab];
-  const currentRecords = recordsByType[activeTab];
-
-  // Map Louise's data to month indices
-  const birthDate = new Date(user.birthDate);
-  const mappedData = new Array(25).fill(null);
-  
-  currentRecords.forEach(record => {
-    const recordDate = new Date(record.date);
-    const monthAge = (recordDate.getFullYear() - birthDate.getFullYear()) * 12 + (recordDate.getMonth() - birthDate.getMonth());
-    if (monthAge >= 0 && monthAge <= 24) {
-      mappedData[monthAge] = record.value;
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!date) return;
+    const record = {
+      id: Date.now().toString(),
+      date,
+      type: activeTab,
+      unit: activeTabInfo.unit,
+    };
+    // 奶量記錄附帶時間
+    if (activeTabInfo.showTime) {
+      record.time = time;
     }
+    
+    if (activeTab === 'feeding') {
+      const bm = parseInt(breastMilk) || 0;
+      const fm = parseInt(formulaMilk) || 0;
+      if (bm === 0 && fm === 0) return; // 至少一個有值
+      record.breastMilk = bm;
+      record.formula = fm;
+      record.value = bm + fm; // 總量供統計用
+    } else {
+      if (!value) return;
+      record.value = parseFloat(value);
+    }
+    
+    addGrowthRecord(record);
+    setValue('');
+    setBreastMilk('');
+    setFormulaMilk('');
+  };
+
+  const records = growthRecords.filter(r => r.type === activeTab);
+  const sortedRecords = [...records].sort((a, b) => {
+    // 同一天內按時間排
+    if (a.date === b.date && a.time && b.time) return b.time.localeCompare(a.time);
+    return new Date(b.date) - new Date(a.date);
   });
 
-  // Use raw mapped data without interpolation
-  // Chart.js will automatically skip null values when spanGaps is false
-  const chartData = mappedData;
+  // 今天奶量總計（分開母乳和配方）
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayFeedingStats = growthRecords
+    .filter(r => r.type === 'feeding' && r.date === todayStr)
+    .reduce((stats, r) => {
+      stats.breastMilk += (r.breastMilk || 0);
+      stats.formula += (r.formula || 0);
+      stats.total += (r.value || 0);
+      stats.count += 1;
+      return stats;
+    }, { breastMilk: 0, formula: 0, total: 0, count: 0 });
 
   return (
-    <div className="flex-1 overflow-auto pb-24 p-4">
-      <h2 className="text-white mb-6" style={{ fontFamily: 'var(--font-display)', fontSize: '2.5rem', fontWeight: '600', letterSpacing: '-0.015em' }}>成長追蹤</h2>
+    <div className="p-4 space-y-5" style={{ paddingBottom: '20px' }}>
+      <h2 className="section-title">📏 成長追蹤</h2>
 
-      {/* Tab 切換 */}
-      <div className="flex gap-2 mb-6">
-        {['weight', 'height', 'headCircumference'].map(tab => (
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2">
+        {TABS.map(tab => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg transition-all hover:-translate-y-0.5 ${
-              activeTab === tab
-                ? 'bg-rose text-white'
-                : 'glass-card text-white/50 hover:text-white/85'
-            }`}
+            key={tab.id}
+            onClick={() => { setActiveTab(tab.id); setValue(''); }}
+            className={`btn-sm ${activeTab === tab.id ? 'btn-blue' : ''}`}
           >
-            {tab === 'weight' ? '體重' : tab === 'height' ? '身高' : '頭圍'}
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {/* 圖表 */}
-      <div className="glass-card mb-6 h-64 sm:h-72 md:h-80 lg:h-96 flex items-center justify-center">
-        {currentRecords.length === 0 ? (
-          <div className="text-center">
-            <p className="text-4xl mb-3">📈</p>
-            <p className="text-white/50 text-sm">添加 3 筆以上的數據就能看到<br />WHO 成長曲線對比</p>
+      {/* 奶量 今日總計 */}
+      {activeTab === 'feeding' && todayFeedingStats.total > 0 && (
+        <div className="sticky-note" style={{ transform: 'rotate(-0.5deg)', textAlign: 'center' }}>
+          <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem' }}>
+            🤱 {todayFeedingStats.breastMilk}ml + 🍼 {todayFeedingStats.formula}ml = <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.5rem', fontWeight: 600, color: 'var(--accent)' }}>{todayFeedingStats.total}</span> ml（{todayFeedingStats.count} 次）
+          </p>
+        </div>
+      )}
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="card">
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 12 }}>
+          新增{activeTabInfo.label.replace(/[^一-龥]/g, '')}記錄
+        </h3>
+        <div className="space-y-3">
+          <div>
+            <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>日期</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+          </div>
+          {activeTabInfo.showTime && (
+            <div>
+              <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>時間</label>
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
+            </div>
+          )}
+          {activeTabInfo.showFeeding ? (
+            <>
+              <div>
+                <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>🤱 母乳 (ml)</label>
+                <input
+                  type="number" step="1" min="0"
+                  value={breastMilk} onChange={(e) => setBreastMilk(e.target.value)}
+                  placeholder="例如：40"
+                />
+              </div>
+              <div>
+                <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>🍼 配方奶 (ml)</label>
+                <input
+                  type="number" step="1" min="0"
+                  value={formulaMilk} onChange={(e) => setFormulaMilk(e.target.value)}
+                  placeholder="例如：20"
+                />
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>
+                數值 ({activeTabInfo.unit})
+              </label>
+              <input
+                type="number" step={activeTabInfo.step} min="0"
+                value={value} onChange={(e) => setValue(e.target.value)}
+                placeholder={activeTabInfo.placeholder} required
+              />
+            </div>
+          )}
+          <button type="submit" className="btn w-full">✅ 新增記錄</button>
+        </div>
+      </form>
+
+      {/* History */}
+      <div>
+        <h3 className="section-title">記錄歷史 ({records.length} 筆)</h3>
+        {sortedRecords.length === 0 ? (
+          <div className="card text-center">
+            <p className="text-4xl mb-2">📊</p>
+            <p style={{ fontFamily: 'var(--font-body)', opacity: 0.6 }}>還沒有記錄，開始添加第一筆數據吧！</p>
           </div>
         ) : (
-          <GrowthChart
-            data={chartData}
-            whoData={currentData.who}
-            label={user.name}
-            color={currentData.color}
-            unit={currentData.unit}
-            spanGaps={false}
-          />
-        )}
-      </div>
-
-      {/* 記錄列表 */}
-      <div className="space-y-2">
-        <h3 className="text-white/85 font-bold caption">記錄歷史</h3>
-        {currentRecords.length === 0 ? (
-          <EmptyState
-            icon="📊"
-            title="還沒有記錄"
-            description="開始記錄 Louise 的成長數據，查看 WHO 成長曲線對比"
-          />
-        ) : (
-          [...currentRecords].reverse().map(record => {
-            const recordDate = new Date(record.date);
-            const monthAge = (recordDate.getFullYear() - birthDate.getFullYear()) * 12 + (recordDate.getMonth() - birthDate.getMonth());
-            const percentile = calculatePercentile(record.value, activeTab, monthAge);
-
-            return (
-              <div
-                key={record.id}
-                className="glass-card p-3 text-sm cursor-pointer hover:bg-white/5 transition-all hover:-translate-y-0.5"
-                onClick={() => setEditingRecord(record)}
-              >
-                <div className="flex justify-between items-center">
-                  <span className="text-white/50">{record.date}</span>
-                  <span className="text-white/85 font-bold">{record.value} {record.unit}</span>
+          <div className="space-y-2">
+            {sortedRecords.map(record => (
+              <div key={record.id} className="card p-3 flex justify-between items-center animate-in">
+                <div>
+                  {record.type === 'feeding' ? (
+                    <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
+                      {record.breastMilk > 0 && `🤱${record.breastMilk}`}
+                      {record.breastMilk > 0 && record.formula > 0 && ' + '}
+                      {record.formula > 0 && `🍼${record.formula}`}
+                      <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> = {record.value} ml</span>
+                    </span>
+                  ) : (
+                    <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
+                      {record.value} {record.unit}
+                    </span>
+                  )}
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.6 }}>
+                    {record.date}
+                    {record.time && ` ${record.time}`}
+                  </p>
                 </div>
-                {percentile && (
-                  <p className="text-white/28 text-xs mt-1">
-                    {percentile}
-                  </p>
-                )}
-                {record.note && (
-                  <p className="text-white/28 text-xs mt-1">
-                    {record.note}
-                  </p>
-                )}
+                <button onClick={() => deleteGrowthRecord(record.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
               </div>
-            );
-          })
+            ))}
+          </div>
         )}
       </div>
-
-      {/* 編輯模態 */}
-      {editingRecord && (
-        <EditModal
-          record={editingRecord}
-          type="growth"
-          onClose={() => setEditingRecord(null)}
-        />
-      )}
     </div>
   );
 };

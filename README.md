@@ -1,101 +1,60 @@
-# Louise 成長記錄系統
+# 👶 Louise 成長記錄
 
-一個精美的寶寶成長記錄應用，支持：
+**Louise 是我們的女兒，34 週又 6 天早產來到這個世界。這個小小的 App，是我們記錄她每一天成長的地方。**
 
-- 📊 **多維度記錄**：體重、身高、頭圍
-- 📈 **WHO 成長曲線對比**：P3/P50/P97 百分位
-- 🍼 **日常記錄**：餵食、睡眠
-- 🎉 **里程碑**：記錄重要時刻 + 慶祝動畫
-- 💌 **信件**：寫給寶寶的未來信件
-- 💉 **健康記錄**：疫苗、就醫、用藥
-- 💾 **數據備份**：JSON 導出/導入
-- ☁️ **Supabase 雲端同步**：多設備數據同步
-- 🌙 **深色/淺色主題**：自動切換
-- 📱 **響應式設計**：完美適配手機和桌面
+---
 
-## 🚀 快速開始
+## ✨ 功能一覽
 
-### 本地開發
+| 功能 | 說明 |
+|------|------|
+| 📏 **成長追蹤** | 記錄體重、身高、頭圍、胸圍，搭配 WHO 百分位曲線即時對比 |
+| 🍼 **奶量記錄** | 分開記錄母乳與配方奶，自動計算 ml/kg/day 是否達標 |
+| 💉 **疫苗管理** | 支援台灣 18 劑標準疫苗 + 自訂疫苗，可手動編輯日期 |
+| 🎉 **里程碑** | 直覺的縱向時間軸，記錄寶寶的每一個第一次 |
+| 📝 **成長日記** | 每天寫下想記住的事，點日期回顧 |
+| 👶 **矯正月齡** | 針對早產兒自動計算矯正週齡，所有評估以矯正月齡為準 |
+| 📱 **PWA 支援** | 可加到手機桌面，離線也可使用 |
+| ☁️ **Firebase 同步** | 資料即時備份到雲端，換手機也不怕 |
+
+## 🛠️ 技術架構
+
+```
+Louise Growth Tracker
+├── React 18 · Vite 5 · Tailwind CSS 3
+├── Firebase Firestore (雲端儲存)
+├── localStorage (即時快取)
+├── Chart.js · react-chartjs-2 (圖表)
+├── lucide-react (圖標)
+├── PWA · Service Worker
+└── 手繪風格設計系統 ✏️
+```
+
+## 🎨 設計特色
+
+沒有直角、沒有柔和陰影。我們用的是：
+
+- **波浪邊框**：`border-radius: 255px 15px 225px 15px`
+- **硬陰影**：`box-shadow: 4px 4px 0px 0px #2d2d2d`
+- **手寫字體**：Kalam + Patrick Hand
+- **紙紋背景**：點狀筆記本質感
+- **便利貼**：黃色貼紙風格元件
+
+每一個細節都讓這個 App 看起來像是手繪筆記本，而不是冷冰冰的生產力工具。
+
+## 🚀 開發
 
 ```bash
-# 安裝依賴
-npm install
-
-# 啟動開發服務器
-npm run dev
-
-# 構建生產版本
-npm run build
-
-# 預覽生產構建
-npm run preview
+npm install      # 安裝依賴
+npm run dev      # 本機開發
+npm run build    # 打包
+npx gh-pages -d dist  # 部署
 ```
 
-### 部署到 Zeabur
+## 🌐 網址
 
-1. **推送到 GitHub**
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git remote add origin https://github.com/你的用戶名/louise-growth-tracker.git
-   git push -u origin main
-   ```
+[https://zhewenzhang.github.io/louise-growth-tracker/](https://zhewenzhang.github.io/louise-growth-tracker/)
 
-2. **在 Zeabur 部署**
-   - 打開 [https://zeabur.com](https://zeabur.com)
-   - 點擊 "New Project"
-   - 連接你的 GitHub 倉庫
-   - Zeabur 會自動識別 `zeabur.json` 配置
-   - 點擊 "Deploy"
+---
 
-3. **配置環境變數（可選）**
-   
-   如果需要 Supabase 雲端同步，在 Zeabur 控制台添加：
-   - `VITE_SUPABASE_URL`：你的 Supabase 項目 URL
-   - `VITE_SUPABASE_ANON_KEY`：你的 Supabase anon key
-
-   如果不配置這些變數，應用會自動使用本地模式（LocalStorage）。
-
-## 📁 項目結構
-
-```
-louise-growth-tracker/
-├── src/
-│   ├── components/          # React 組件
-│   │   ├── pages/           # 頁面組件
-│   │   └── shared/          # 共享組件
-│   ├── context/             # React Context
-│   ├── hooks/               # 自定義 Hooks
-│   ├── lib/                 # 第三方庫配置
-│   ├── services/            # 服務層（Supabase 同步）
-│   └── styles/              # CSS 樣式
-├── public/                  # 靜態資源
-├── index.html               # HTML 入口
-├── vite.config.js           # Vite 配置
-├── tailwind.config.js       # Tailwind 配置
-├── zeabur.json              # Zeabur 部署配置
-└── package.json
-```
-
-## 🗄️ Supabase 設置（可選）
-
-如果你想要雲端數據同步：
-
-1. 在 [https://supabase.com](https://supabase.com) 創建項目
-2. 複製 `.env.example` 到 `.env` 並填寫你的 Supabase 信息
-3. 在 Supabase SQL Editor 中執行 `supabase-init.sql` 創建數據庫表
-
-詳細指南請查看 `SUPABASE_SETUP.md`
-
-## 🎨 設計特點
-
-- **Liquid Glass Morphism** 設計風格
-- **Playfair Display** + **Inter** 字體組合
-- 玫瑰粉色系為主色調
-- 統一的 8px 間距系統
-- 完整的深色/淺色主題支持
-
-## 📄 許可證
-
-MIT
+*從 2026 年 4 月 26 日開始，每一天都在長大。*

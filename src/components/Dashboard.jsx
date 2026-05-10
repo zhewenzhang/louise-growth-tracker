@@ -1,0 +1,409 @@
+import React, { useMemo, useState, useEffect } from 'react';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
+import { Line } from 'react-chartjs-2';
+import { useApp } from '../context/AppContext.jsx';
+import { formatBabyAge } from '../utils/calculations';
+import { calcPercentile } from '../utils/whoPercentile';
+import ChartModal from './ChartModal';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
+
+const Dashboard = ({ onNavigate }) => {
+  const { user, growthRecords, vaccineRecords, milestones, firestoreStatus } = useApp();
+  const [chartMetric, setChartMetric] = useState(null);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const babyAge = useMemo(() => {
+    return formatBabyAge(user?.birthDate, user?.dueDate);
+  }, [user?.birthDate, user?.dueDate, tick]);
+
+  const weightRecords = useMemo(() =>
+    growthRecords.filter(r => r.type === 'weight').sort((a, b) => new Date(a.date) - new Date(b.date)),
+    [growthRecords]
+  );
+
+  const heightRecords = useMemo(() =>
+    growthRecords.filter(r => r.type === 'height').sort((a, b) => new Date(a.date) - new Date(b.date)),
+    [growthRecords]
+  );
+
+  const headRecords = useMemo(() =>
+    growthRecords.filter(r => r.type === 'headCircumference').sort((a, b) => new Date(a.date) - new Date(b.date)),
+    [growthRecords]
+  );
+  const chestRecords = useMemo(() =>
+    growthRecords.filter(r => r.type === 'chestCircumference').sort((a, b) => new Date(a.date) - new Date(b.date)),
+    [growthRecords]
+  );
+  const feedingRecords = useMemo(() =>
+    growthRecords.filter(r => r.type === 'feeding').sort((a, b) => new Date(a.date) - new Date(b.date)),
+    [growthRecords]
+  );
+
+  const latestWeight = weightRecords.length > 0 ? weightRecords[weightRecords.length - 1] : null;
+  const latestHeight = heightRecords.length > 0 ? heightRecords[heightRecords.length - 1] : null;
+  const latestHead = headRecords.length > 0 ? headRecords[headRecords.length - 1] : null;
+  const latestChest = chestRecords.length > 0 ? chestRecords[chestRecords.length - 1] : null;
+  const latestMilestone = milestones.length > 0 ? milestones[0] : null;
+  const vaccineCompleted = vaccineRecords.filter(v => v.completed).length;
+
+  // 今日奶量統計（含母乳/配方明細）
+  const todayFeedingStats = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayFeeding = feedingRecords.filter(r => r.date === todayStr);
+    return {
+      breastMilk: todayFeeding.reduce((s, r) => s + (r.breastMilk || 0), 0),
+      formula: todayFeeding.reduce((s, r) => s + (r.formula || 0), 0),
+      total: todayFeeding.reduce((s, r) => s + (r.value || 0), 0),
+      count: todayFeeding.length,
+    };
+  }, [feedingRecords]);
+
+  // 矯正月齡（供百分位計算用）
+  const correctedAgeInfo = useMemo(() => {
+    if (!user?.birthDate || !user?.dueDate) return null;
+    const birth = new Date(user.birthDate);
+    const due = new Date(user.dueDate);
+    const prematurityDays = Math.floor((due - birth) / (1000 * 60 * 60 * 24));
+    const now = new Date();
+    const chronologicalDays = Math.floor((now - birth) / (1000 * 60 * 60 * 24));
+    const correctedDays = chronologicalDays - prematurityDays;
+    return { correctedDays, correctedMonths: correctedDays / 30.44 };
+  }, [user?.birthDate, user?.dueDate, tick]);
+
+  // 體重百分位評估
+  const weightPercentile = useMemo(() => {
+    if (!latestWeight || !correctedAgeInfo || correctedAgeInfo.correctedMonths < 0) return null;
+    return calcPercentile('weight', latestWeight.value, correctedAgeInfo.correctedMonths);
+  }, [latestWeight, correctedAgeInfo]);
+
+  const heightPercentile = useMemo(() => {
+    if (!latestHeight || !correctedAgeInfo || correctedAgeInfo.correctedMonths < 0) return null;
+    return calcPercentile('height', latestHeight.value, correctedAgeInfo.correctedMonths);
+  }, [latestHeight, correctedAgeInfo]);
+
+  const headPercentile = useMemo(() => {
+    if (!latestHead || !correctedAgeInfo || correctedAgeInfo.correctedMonths < 0) return null;
+    return calcPercentile('headCircumference', latestHead.value, correctedAgeInfo.correctedMonths);
+  }, [latestHead, correctedAgeInfo]);
+
+  // 奶量評估（含預估投影）
+  const feedingAssessment = useMemo(() => {
+    if (!latestWeight || todayFeedingStats.total === 0) return null;
+    const mlPerKg = todayFeedingStats.total / latestWeight.value;
+
+    // 根據記錄次數推估全天總量（4 小時一次 ≈ 6 次/天）
+    const FEEDS_PER_DAY = 6;
+    const avgPerFeed = todayFeedingStats.count > 0 ? todayFeedingStats.total / todayFeedingStats.count : 0;
+    const projectedTotal = todayFeedingStats.count < 3 ? avgPerFeed * FEEDS_PER_DAY : todayFeedingStats.total;
+    const projectedMlPerKg = projectedTotal / latestWeight.value;
+
+    const isPremature = user?.dueDate && new Date(user.dueDate) > new Date(user.birthDate);
+    const minTarget = isPremature ? 150 : 120;
+    const maxTarget = isPremature ? 180 : 150;
+
+    const status = projectedMlPerKg >= maxTarget ? 'good' : projectedMlPerKg >= minTarget ? 'ok' : 'low';
+
+    return {
+      mlPerKg: Math.round(mlPerKg),
+      projectedMlPerKg: Math.round(projectedMlPerKg),
+      projectedTotal: Math.round(projectedTotal),
+      isProjected: todayFeedingStats.count < 3,
+      minTarget, maxTarget, status,
+    };
+  }, [latestWeight, todayFeedingStats, user?.dueDate, user?.birthDate, tick]);
+
+  const chartData = useMemo(() => {
+    if (weightRecords.length < 2) return null;
+    const recent = weightRecords.slice(-10);
+    return {
+      labels: recent.map(r => {
+        const d = new Date(r.date);
+        return `${d.getMonth() + 1}/${d.getDate()}`;
+      }),
+      datasets: [{
+        label: '體重 (kg)',
+        data: recent.map(r => r.value),
+        borderColor: '#ff4d4d',
+        backgroundColor: 'rgba(255,77,77,0.08)',
+        borderWidth: 3,
+        pointBackgroundColor: '#ff4d4d',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        tension: 0.3,
+        fill: true,
+      }],
+    };
+  }, [weightRecords]);
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#fff',
+        titleColor: '#2d2d2d',
+        bodyColor: '#2d2d2d',
+        borderColor: '#2d2d2d',
+        borderWidth: 2,
+        cornerRadius: 0,
+        padding: 12,
+        displayColors: false,
+        titleFont: { family: 'Patrick Hand', size: 14 },
+        bodyFont: { family: 'Inter', size: 14, weight: '600' },
+      },
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: '#999', font: { family: 'Patrick Hand', size: 11 } } },
+      y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { color: '#999', font: { family: 'Inter', size: 11 }, callback: v => v + ' kg' } },
+    },
+  };
+
+  return (
+    <div className="p-4 space-y-5" style={{ paddingBottom: '20px' }}>
+      {/* Greeting */}
+      <div>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2.5rem', lineHeight: 1.2, color: 'var(--fg)' }}>
+          {(() => { const h = new Date().getHours(); return h < 12 ? '早安 ☀️' : h < 18 ? '午安 🌤️' : '晚安 🌙'; })()}
+        </h1>
+        {user?.name && (
+          <p style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', color: 'var(--accent)', marginTop: 2 }}>
+            {user.name}
+          </p>
+        )}
+        {babyAge && (
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '1rem', color: 'var(--fg)', opacity: 0.6, marginTop: 4 }}>
+            {babyAge}
+          </p>
+        )}
+      </div>
+
+      {/* Weight chart */}
+      <div className="card" style={{ padding: '20px 20px 12px 20px' }}>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 12 }}>📈 體重趨勢</h3>
+        {chartData ? (
+          <div style={{ height: 200 }}>
+            <Line data={chartData} options={chartOptions} />
+          </div>
+        ) : (
+          <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.4, fontFamily: 'var(--font-body)' }}>
+            需要至少 2 筆體重記錄才能顯示圖表
+          </div>
+        )}
+      </div>
+
+      {/* Summary cards — row 1 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+        <button
+          className="card-sm"
+          style={{ textAlign: 'center', transform: 'rotate(-1deg)', width: '100%', cursor: weightRecords.length >= 2 ? 'pointer' : 'default', opacity: weightRecords.length >= 2 ? 1 : 0.6 }}
+          onClick={() => weightRecords.length >= 2 && setChartMetric('weight')}
+          disabled={weightRecords.length < 2}
+        >
+          <div style={{ fontSize: '1.5rem', marginBottom: 4 }}>⚖️</div>
+          <div style={{ fontFamily: 'var(--font-number)', fontSize: '1.4rem', fontWeight: 600 }}>
+            {latestWeight ? latestWeight.value : '--'}
+          </div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.6 }}>kg</div>
+          {weightPercentile && weightPercentile.percentile !== '—' && (
+            <div style={{
+              fontFamily: 'var(--font-body)', fontSize: '0.65rem', marginTop: 2,
+              color: { green: '#2d7d46', yellow: '#e67e22', red: '#ff4d4d', muted: '#999' }[weightPercentile.color] || '#999'
+            }}>
+              {weightPercentile.percentile} · {weightPercentile.label}
+            </div>
+          )}
+        </button>
+        <button
+          className="card-sm"
+          style={{ textAlign: 'center', transform: 'rotate(1deg)', width: '100%', cursor: heightRecords.length >= 2 ? 'pointer' : 'default', opacity: heightRecords.length >= 2 ? 1 : 0.6 }}
+          onClick={() => heightRecords.length >= 2 && setChartMetric('height')}
+          disabled={heightRecords.length < 2}
+        >
+          <div style={{ fontSize: '1.5rem', marginBottom: 4 }}>📐</div>
+          <div style={{ fontFamily: 'var(--font-number)', fontSize: '1.4rem', fontWeight: 600 }}>
+            {latestHeight ? latestHeight.value : '--'}
+          </div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.6 }}>cm</div>
+          {heightPercentile && heightPercentile.percentile !== '—' && (
+            <div style={{
+              fontFamily: 'var(--font-body)', fontSize: '0.65rem', marginTop: 2,
+              color: { green: '#2d7d46', yellow: '#e67e22', red: '#ff4d4d', muted: '#999' }[heightPercentile.color] || '#999'
+            }}>
+              {heightPercentile.percentile} · {heightPercentile.label}
+            </div>
+          )}
+        </button>
+        <div className="card-sm" style={{ textAlign: 'center', transform: 'rotate(-0.5deg)' }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: 4 }}>💉</div>
+          <div style={{ fontFamily: 'var(--font-number)', fontSize: '1.4rem', fontWeight: 600 }}>
+            {vaccineCompleted}/{vaccineRecords.length}
+          </div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.6 }}>疫苗</div>
+        </div>
+      </div>
+
+      {/* Summary cards — row 2: 頭圍 + 胸圍 + 奶量 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+        <button
+          className="card-sm"
+          style={{ textAlign: 'center', transform: 'rotate(1deg)', width: '100%', cursor: headRecords.length >= 2 ? 'pointer' : 'default', opacity: headRecords.length >= 2 ? 1 : 0.6 }}
+          onClick={() => headRecords.length >= 2 && setChartMetric('headCircumference')}
+          disabled={headRecords.length < 2}
+        >
+          <div style={{ fontSize: '1.5rem', marginBottom: 4 }}>👶</div>
+          <div style={{ fontFamily: 'var(--font-number)', fontSize: '1.4rem', fontWeight: 600 }}>
+            {latestHead ? latestHead.value : '--'}
+          </div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.6 }}>頭圍 cm</div>
+          {headPercentile && headPercentile.percentile !== '—' && (
+            <div style={{
+              fontFamily: 'var(--font-body)', fontSize: '0.65rem', marginTop: 2,
+              color: { green: '#2d7d46', yellow: '#e67e22', red: '#ff4d4d', muted: '#999' }[headPercentile.color] || '#999'
+            }}>
+              {headPercentile.percentile} · {headPercentile.label}
+            </div>
+          )}
+        </button>
+        <button
+          className="card-sm"
+          style={{ textAlign: 'center', transform: 'rotate(-1deg)', width: '100%', cursor: chestRecords.length >= 2 ? 'pointer' : 'default', opacity: chestRecords.length >= 2 ? 1 : 0.6 }}
+          onClick={() => chestRecords.length >= 2 && setChartMetric('chestCircumference')}
+          disabled={chestRecords.length < 2}
+        >
+          <div style={{ fontSize: '1.5rem', marginBottom: 4 }}>👕</div>
+          <div style={{ fontFamily: 'var(--font-number)', fontSize: '1.4rem', fontWeight: 600 }}>
+            {latestChest ? latestChest.value : '--'}
+          </div>
+          <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.6 }}>胸圍 cm</div>
+        </button>
+        {todayFeedingStats.count > 0 ? (
+          <button
+            className="card-sm"
+            style={{
+              textAlign: 'center', transform: 'rotate(0.5deg)', width: '100%',
+              cursor: feedingRecords.length >= 2 ? 'pointer' : 'default',
+              padding: '12px 10px',
+            }}
+            onClick={() => feedingRecords.length >= 2 && setChartMetric('feeding')}
+            disabled={feedingRecords.length < 2}
+          >
+            <div style={{ fontSize: '1.3rem', marginBottom: 2 }}>🍼</div>
+            <div style={{ fontFamily: 'var(--font-number)', fontSize: '1.3rem', fontWeight: 600, lineHeight: 1.2 }}>
+              {todayFeedingStats.total}<span style={{ fontSize: '0.75rem', fontWeight: 400, opacity: 0.6 }}> ml</span>
+            </div>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', opacity: 0.5, marginTop: 2 }}>
+              {todayFeedingStats.count} 次 · {todayFeedingStats.count > 0 && Math.round(todayFeedingStats.total / todayFeedingStats.count)}ml/次
+            </div>
+            {feedingAssessment && (
+              <div style={{
+                marginTop: 6, padding: '4px 8px',
+                borderRadius: 'var(--wobbly-sm)',
+                background: feedingAssessment.status === 'good' ? '#e8f5e9' :
+                            feedingAssessment.status === 'ok' ? '#fff8e1' : '#ffebee',
+                fontFamily: 'var(--font-body)', fontSize: '0.65rem',
+                color: feedingAssessment.status === 'good' ? '#2d7d46' :
+                       feedingAssessment.status === 'ok' ? '#e67e22' : '#c62828',
+              }}>
+                {feedingAssessment.isProjected
+                  ? `預估 ${feedingAssessment.projectedTotal}ml/天 · ${feedingAssessment.projectedMlPerKg} ml/kg`
+                  : `${feedingAssessment.mlPerKg} ml/kg/天`}
+                <br/>
+                {feedingAssessment.status === 'good' ? '✅ 達標' :
+                 feedingAssessment.status === 'ok' ? '尚可' :
+                 `⚠️ 建議 ${feedingAssessment.minTarget}-${feedingAssessment.maxTarget} ml/kg`}
+              </div>
+            )}
+          </button>
+        ) : (
+          <div className="card-sm" style={{ textAlign: 'center', transform: 'rotate(0.5deg)', opacity: 0.35, padding: '12px 10px' }}>
+            <div style={{ fontSize: '1.3rem', marginBottom: 2 }}>🍼</div>
+            <div style={{ fontFamily: 'var(--font-number)', fontSize: '1.3rem', fontWeight: 600 }}>--</div>
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', opacity: 0.6 }}>奶量 ml</div>
+          </div>
+        )}
+      </div>
+
+      {/* Latest milestone */}
+      {latestMilestone && (
+        <div className="sticky-note" style={{ transform: 'rotate(-1.5deg)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <span style={{ fontSize: '2rem' }}>{latestMilestone.emoji || '🎉'}</span>
+            <div>
+              <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem' }}>最近里程碑</h4>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: '1rem', marginTop: 2 }}>{latestMilestone.title}</p>
+              {latestMilestone.date && (
+                <p style={{ fontSize: '0.8rem', opacity: 0.5, marginTop: 4 }}>
+                  {new Date(latestMilestone.date).toLocaleDateString('zh-TW')}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick nav buttons */}
+      <div>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 12 }}>📋 快速操作</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+          <button className="btn" onClick={() => onNavigate?.('growth')} style={{ transform: 'rotate(-1deg)' }}>
+            ⚖️ 記錄成長
+          </button>
+          <button className="btn" onClick={() => onNavigate?.('health')} style={{ transform: 'rotate(0.5deg)' }}>
+            💉 疫苗管理
+          </button>
+          <button className="btn" onClick={() => onNavigate?.('memories')} style={{ transform: 'rotate(1deg)' }}>
+            🌟 回憶錄
+          </button>
+        </div>
+      </div>
+
+      {/* Firestore 狀態指示器 */}
+      <div style={{ textAlign: 'center', padding: '16px', opacity: 0.5 }}>
+        <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem' }}>
+          {firestoreStatus === 'connecting' && '🔄 正在連接 Firestore...'}
+          {firestoreStatus === 'connected' && '☁️ Firestore 已連接'}
+          {firestoreStatus === 'empty' && '☁️ Firestore 已連接（尚無數據）'}
+          {firestoreStatus === 'error' && (
+            <>
+              ⚠️ Firestore 離線 — 使用本地存儲{' '}
+              <button
+                onClick={() => window.location.reload()}
+                style={{
+                  fontFamily: 'var(--font-body)', fontSize: '0.75rem',
+                  color: 'var(--blue)', textDecoration: 'underline',
+                  background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                }}
+              >
+                重新連線
+              </button>
+            </>
+          )}
+        </span>
+      </div>
+
+      {/* Chart Modal */}
+      {chartMetric && (
+        <ChartModal
+          metric={chartMetric}
+          records={chartMetric === 'weight' ? weightRecords :
+                   chartMetric === 'height' ? heightRecords :
+                   chartMetric === 'headCircumference' ? headRecords :
+                   chartMetric === 'chestCircumference' ? chestRecords : feedingRecords}
+          user={user}
+          onClose={() => setChartMetric(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default Dashboard;

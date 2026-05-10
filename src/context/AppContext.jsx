@@ -1,224 +1,255 @@
-﻿import React, { createContext, useContext, useEffect, useRef } from 'react';
+﻿import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { isSupabaseAvailable, syncUserData, loadUserData, syncGrowthRecords, loadGrowthRecords, subscribeToChanges } from '../services/syncService';
+import { DEFAULT_VACCINES, calcVaccineDates } from '../data/vaccines';
+import {
+  saveUserToFirestore, loadUserFromFirestore,
+  saveGrowthToFirestore, loadGrowthFromFirestore, deleteGrowthFromFirestore,
+  saveVaccinesToFirestore, loadVaccinesFromFirestore,
+  saveMilestoneToFirestore, loadMilestonesFromFirestore, deleteMilestoneFromFirestore,
+  saveDiaryToFirestore, loadDiaryFromFirestore, deleteDiaryFromFirestore,
+} from '../services/firestoreService';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  // 用戶信息
-  const [user, setUser] = useLocalStorage('louise_user', {
-    name: '',
-    birthDate: '',
-    gender: ''
-  });
-
-  // 成長記錄
+  const [user, setUser] = useLocalStorage('louise_user', { name: 'Louise', birthDate: '2026-04-26', dueDate: '2026-06-01', gender: 'female' });
   const [growthRecords, setGrowthRecords] = useLocalStorage('louise_growth', []);
-
-  // 餵食記錄
-  const [feedingRecords, setFeedingRecords] = useLocalStorage('louise_feeding', []);
-
-  // 睡眠記錄
-  const [sleepRecords, setSleepRecords] = useLocalStorage('louise_sleep', []);
-
-  // 健康記錄
-  const [healthRecords, setHealthRecords] = useLocalStorage('louise_health', []);
-
-  // 疫苗追蹤
-  const [vaccineRecords, setVaccineRecords] = useLocalStorage('louise_vaccines', [
-    { id: 'vaccine_1', name: 'B肝疫苗', completed: false, dates: [] },
-    { id: 'vaccine_2', name: '卡介苗', completed: false, dates: [] },
-    { id: 'vaccine_3', name: '脊髓灰質炎', completed: false, dates: [] },
-    { id: 'vaccine_4', name: '百日咳/白喉/破傷風', completed: false, dates: [] },
-    { id: 'vaccine_5', name: '小兒麻痺', completed: false, dates: [] },
-    { id: 'vaccine_6', name: '流感嗜血桿菌', completed: false, dates: [] },
-    { id: 'vaccine_7', name: '肺炎球菌', completed: false, dates: [] },
-    { id: 'vaccine_8', name: '麻疹/腮腺炎/風疹', completed: false, dates: [] },
-    { id: 'vaccine_9', name: '輪狀病毒', completed: false, dates: [] },
-    { id: 'vaccine_10', name: '水痘', completed: false, dates: [] },
-    { id: 'vaccine_11', name: '肝炎A', completed: false, dates: [] }
-  ]);
-
-  // 里程碑
+  const [vaccineRecords, setVaccineRecords] = useLocalStorage('louise_vaccines',
+    calcVaccineDates(DEFAULT_VACCINES.map(v => ({ ...v, completed: false, date: null })), '2026-04-26')
+  );
   const [milestones, setMilestones] = useLocalStorage('louise_milestones', []);
+  const [diaryEntries, setDiaryEntries] = useLocalStorage('louise_diary', []);
+  const [loaded, setLoaded] = useState(false);
+  const [firestoreStatus, setFirestoreStatus] = useState('connecting'); // 'connecting' | 'connected' | 'empty' | 'error'
 
-  // 信件
-  const [letters, setLetters] = useLocalStorage('louise_letters', []);
+  // 初始化：從 Firestore 同步數據（Firestore 為權威來源）
+  useEffect(() => {
+    (async () => {
+      let anySuccess = false;
+      try {
+        // User
+        const remoteUser = await loadUserFromFirestore();
+        if (remoteUser?.name) {
+          setUser({ name: remoteUser.name, birthDate: remoteUser.birthDate, gender: remoteUser.gender || 'female' });
+          anySuccess = true;
+        } else if (!remoteUser) {
+          // Firestore 沒有用戶數據，把 localStorage 的推上去
+          const lsUser = JSON.parse(localStorage.getItem('louise_user') || 'null');
+          if (lsUser?.name) saveUserToFirestore(lsUser);
+        }
 
-  // 主題模式
-  const [isDarkMode, setIsDarkMode] = useLocalStorage('louise_dark_mode', true);
+        // Growth Records — Firestore 優先
+        const remoteGrowth = await loadGrowthFromFirestore();
+        if (remoteGrowth && remoteGrowth.length > 0) {
+          setGrowthRecords(remoteGrowth);
+          localStorage.setItem('louise_growth', JSON.stringify(remoteGrowth));
+          anySuccess = true;
+        } else {
+          // Firestore 空的，把 localStorage 數據推上去
+          const lsGrowth = JSON.parse(localStorage.getItem('louise_growth') || '[]');
+          if (lsGrowth.length > 0) {
+            for (const r of lsGrowth) await saveGrowthToFirestore(r);
+          }
+        }
 
-  // 同步狀態跟蹤
-  const [syncStatus, setSyncStatus] = useLocalStorage('louise_sync_status', 'idle');
-  const [syncError, setSyncError] = useLocalStorage('louise_sync_error', null);
+        // Vaccines — Firestore 優先
+        const remoteVaccines = await loadVaccinesFromFirestore();
+        if (remoteVaccines && remoteVaccines.length > 0) {
+          // 在 setVaccineRecords 之前計算疫苗日期
+          const vWithDates = calcVaccineDates(remoteVaccines, user?.birthDate || '2026-04-26');
+          setVaccineRecords(vWithDates);
+          localStorage.setItem('louise_vaccines', JSON.stringify(vWithDates));
+          anySuccess = true;
+        } else {
+          // Firestore 空的，把 localStorage 數據推上去
+          const lsVaccines = JSON.parse(localStorage.getItem('louise_vaccines') || 'null');
+          if (lsVaccines && lsVaccines.length > 0) {
+            setVaccineRecords(lsVaccines);
+            await saveVaccinesToFirestore(lsVaccines);
+          }
+        }
 
-  // 導出數據
-  const exportData = () => {
-    const allData = {
-      user, growthRecords, feedingRecords, sleepRecords,
-      healthRecords, vaccineRecords, milestones, letters
+        // Milestones — Firestore 優先
+        const remoteMilestones = await loadMilestonesFromFirestore();
+        if (remoteMilestones && remoteMilestones.length > 0) {
+          setMilestones(remoteMilestones);
+          localStorage.setItem('louise_milestones', JSON.stringify(remoteMilestones));
+          anySuccess = true;
+        } else {
+          const lsMilestones = JSON.parse(localStorage.getItem('louise_milestones') || '[]');
+          if (lsMilestones.length > 0) {
+            for (const r of lsMilestones) await saveMilestoneToFirestore(r);
+          }
+        }
+
+        // Diary — Firestore 優先
+        const remoteDiary = await loadDiaryFromFirestore();
+        if (remoteDiary && remoteDiary.length > 0) {
+          setDiaryEntries(remoteDiary);
+          localStorage.setItem('louise_diary', JSON.stringify(remoteDiary));
+          anySuccess = true;
+        } else {
+          const lsDiary = JSON.parse(localStorage.getItem('louise_diary') || '[]');
+          if (lsDiary.length > 0) {
+            for (const r of lsDiary) await saveDiaryToFirestore(r);
+          }
+        }
+
+        setFirestoreStatus(anySuccess ? 'connected' : 'error');
+      } catch (e) {
+        console.error('Firestore 初始化錯誤:', e.code, e.message, e);
+        setFirestoreStatus('error');
+      }
+      setLoaded(true);
+    })();
+  }, []);
+
+  // Growth
+  const addGrowthRecord = (r) => {
+    const record = { ...r, id: r.id || Date.now().toString() };
+    setGrowthRecords(prev => [...prev, record]);
+    saveGrowthToFirestore(record);
+  };
+  const deleteGrowthRecord = (id) => {
+    setGrowthRecords(prev => prev.filter(r => r.id !== id));
+    deleteGrowthFromFirestore(id);
+  };
+
+  // Vaccines
+  const toggleVaccine = (id) => {
+    setVaccineRecords(prev => {
+      const updated = prev.map(v =>
+        v.id !== id ? v : v.completed ? { ...v, completed: false, date: null } : { ...v, completed: true, date: new Date().toISOString().split('T')[0] }
+      );
+      saveVaccinesToFirestore(updated);
+      return updated;
+    });
+  };
+
+  // 新增自定義疫苗
+  const addCustomVaccine = (vaccine) => {
+    const newVaccine = {
+      id: 'custom_' + Date.now().toString(),
+      name: vaccine.name,
+      dose: vaccine.dose || '1劑',
+      recommendedAge: vaccine.recommendedAge || '自訂',
+      ageMonths: vaccine.ageMonths || 0,
+      dueDate: vaccine.dueDate || '',
+      completed: false,
+      date: null,
+      isCustom: true,
     };
+    setVaccineRecords(prev => [...prev, newVaccine]);
+    const all = [...vaccineRecords, newVaccine];
+    localStorage.setItem('louise_vaccines', JSON.stringify(all));
+    saveVaccinesToFirestore(all);
+  };
 
-    const dataStr = JSON.stringify(allData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `louise-backup-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
+  // 手動編輯疫苗日期
+  const updateVaccineDate = (id, newDueDate) => {
+    setVaccineRecords(prev => {
+      const updated = prev.map(v => v.id === id ? { ...v, dueDate: newDueDate } : v);
+      localStorage.setItem('louise_vaccines', JSON.stringify(updated));
+      saveVaccinesToFirestore(updated);
+      return updated;
+    });
+  };
+
+  // Milestones
+  const addMilestone = (r) => {
+    const record = { ...r, id: r.id || Date.now().toString() };
+    setMilestones(prev => [record, ...prev]);
+    saveMilestoneToFirestore(record);
+  };
+  const deleteMilestone = (id) => {
+    setMilestones(prev => prev.filter(r => r.id !== id));
+    deleteMilestoneFromFirestore(id);
+  };
+
+  // Diary
+  const addDiaryEntry = (r) => {
+    const record = { ...r, id: r.id || Date.now().toString() };
+    setDiaryEntries(prev => [record, ...prev]);
+    saveDiaryToFirestore(record);
+  };
+  const deleteDiaryEntry = (id) => {
+    setDiaryEntries(prev => prev.filter(r => r.id !== id));
+    deleteDiaryFromFirestore(id);
+  };
+
+  // Export / Import
+  const exportData = () => {
+    const data = { user, growthRecords, vaccineRecords, milestones, diaryEntries, exportDate: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `louise-backup-${new Date().toISOString().split('T')[0]}.json`; a.click();
     URL.revokeObjectURL(url);
   };
 
-  // 導入數據
   const importData = (jsonData) => {
-    try {
-      // 验证输入类型
-      if (typeof jsonData === 'string') {
-        jsonData = JSON.parse(jsonData);
-      }
-
-      // 验证数据结构
-      if (!jsonData || typeof jsonData !== 'object') {
-        throw new Error('無效的數據格式');
-      }
-
-      if (!jsonData.user || typeof jsonData.user !== 'object') {
-        throw new Error('缺少用戶信息');
-      }
-
-      // 验证数组字段
-      const arrayFields = ['growthRecords', 'feedingRecords', 'sleepRecords', 'healthRecords', 'milestones', 'letters'];
-      for (const field of arrayFields) {
-        if (jsonData[field] && !Array.isArray(jsonData[field])) {
-          throw new Error(`${field} 格式無效`);
-        }
-      }
-
-      // 导入所有数据
-      setUser(jsonData.user || { name: '', birthDate: '', gender: '' });
-      setGrowthRecords(jsonData.growthRecords || []);
-      setFeedingRecords(jsonData.feedingRecords || []);
-      setSleepRecords(jsonData.sleepRecords || []);
-      setHealthRecords(jsonData.healthRecords || []);
-      setVaccineRecords(jsonData.vaccineRecords || []);
-      setMilestones(jsonData.milestones || []);
-      setLetters(jsonData.letters || []);
-
-      return true;
-    } catch (error) {
-      console.error('導入失敗:', error);
-      throw error; // 重新抛出错误以便上层处理
+    const data = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+    if (data.user) {
+      const newUser = data.user;
+      setUser(newUser);
+      saveUserToFirestore(newUser);
     }
+    if (Array.isArray(data.growthRecords)) {
+      setGrowthRecords(data.growthRecords);
+      data.growthRecords.forEach(r => saveGrowthToFirestore(r));
+    }
+    if (Array.isArray(data.vaccineRecords)) {
+      setVaccineRecords(data.vaccineRecords);
+      saveVaccinesToFirestore(data.vaccineRecords);
+    }
+    if (Array.isArray(data.milestones)) {
+      setMilestones(data.milestones);
+      data.milestones.forEach(r => saveMilestoneToFirestore(r));
+    }
+    if (Array.isArray(data.diaryEntries)) {
+      setDiaryEntries(data.diaryEntries);
+      data.diaryEntries.forEach(r => saveDiaryToFirestore(r));
+    }
+    return true;
   };
 
-  // 修復循環依賴：使用 ref 追蹤初始化狀態
-  const initRef = useRef(false);
-  const subscriptionRef = useRef(null);
-
-  // 修復：初始化邏輯 - 只運行一次
-  useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
-
-    let subscription = null;
-
-    const initSupabase = async () => {
-      if (isSupabaseAvailable()) {
-        console.log('🔄 初始化 Supabase...');
-        setSyncStatus('connecting');
-
-        try {
-          // 加載用戶數據（只在本地為空時）
-          const remoteUser = await loadUserData();
-          if (remoteUser && !user.name) {
-            setUser(remoteUser);
-          }
-
-          // 加載成長記錄（只在本地為空時）
-          const remoteRecords = await loadGrowthRecords();
-          if (remoteRecords.length > 0 && growthRecords.length === 0) {
-            setGrowthRecords(remoteRecords);
-          }
-
-          // 訂閱實時變化
-          subscription = subscribeToChanges(async () => {
-            try {
-              const updatedRecords = await loadGrowthRecords();
-              setGrowthRecords(updatedRecords);
-              setSyncStatus('synced');
-              setSyncError(null);
-            } catch (subError) {
-              console.error('❌ 實時訂閱更新失敗:', subError);
-              setSyncError(subError.message);
-              setSyncStatus('error');
-            }
-          });
-
-          subscriptionRef.current = subscription;
-          setSyncStatus('synced');
-          setSyncError(null);
-          console.log('✅ Supabase 初始化完成');
-        } catch (error) {
-          console.error('❌ Supabase 初始化失敗:', error);
-          setSyncError(error.message);
-          setSyncStatus('offline');
-          console.log('📱 使用本地模式');
-        }
-      } else {
-        setSyncStatus('unconfigured');
-        console.log('📱 Supabase 未配置 - 使用本地模式');
-        console.log('💡 配置方法：複製 .env.example 到 .env 並填寫 Supabase 信息');
-      }
-    };
-
-    initSupabase();
-
-    return () => {
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-      }
-    };
-  }, []); // 空依賴數組 - 只運行一次
-
-  // 修復：用戶數據同步 - 只在初始化後執行
-  useEffect(() => {
-    if (!initRef.current) return;
-    if (!user.name || !user.birthDate) return;
-
-    syncUserData(user);
-  }, [user]);
-
-  // 修復：成長記錄同步 - 只在初始化後執行
-  useEffect(() => {
-    if (!initRef.current) return;
-    if (growthRecords.length === 0) return;
-
-    syncGrowthRecords(growthRecords);
-  }, [growthRecords]);
-
-  const value = {
-    user, setUser,
-    growthRecords, setGrowthRecords,
-    feedingRecords, setFeedingRecords,
-    sleepRecords, setSleepRecords,
-    healthRecords, setHealthRecords,
-    vaccineRecords, setVaccineRecords,
-    milestones, setMilestones,
-    letters, setLetters,
-    isDarkMode, setIsDarkMode,
-    exportData,
-    importData,
-    syncStatus,
-    syncError
+  // ── User ──
+  const updateUser = (u) => {
+    const newUser = typeof u === 'function' ? u(user) : u;
+    setUser(newUser);
+    saveUserToFirestore(newUser);
   };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  if (!loaded) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', background: 'var(--bg)',
+        fontFamily: 'var(--font-display)',
+      }}>
+        <div style={{ fontSize: '3rem', animation: 'pulse 1.5s ease-in-out infinite' }}>👶</div>
+        <p style={{ fontSize: '1.2rem', color: 'var(--fg)', opacity: 0.6, marginTop: 16 }}>載入中...</p>
+      </div>
+    );
+  }
+
+  return (
+    <AppContext.Provider value={{
+      user, setUser: updateUser,
+      growthRecords, addGrowthRecord, deleteGrowthRecord,
+      vaccineRecords, toggleVaccine, addCustomVaccine, updateVaccineDate,
+      milestones, addMilestone, deleteMilestone,
+      diaryEntries, addDiaryEntry, deleteDiaryEntry,
+      exportData, importData,
+      firestoreStatus,
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
 };
 
 export const useApp = () => {
-  const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useApp must be used within AppProvider');
-  }
-  return context;
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useApp must be used within AppProvider');
+  return ctx;
 };

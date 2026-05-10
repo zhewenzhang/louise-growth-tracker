@@ -1,7 +1,21 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
 export default defineConfig({
+  base: '/louise-growth-tracker/',
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'scheduler'],
+          'vendor-firebase': ['firebase/app', 'firebase/firestore'],
+          'vendor-charts': ['chart.js', 'react-chartjs-2'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 500,
+    minify: 'esbuild',
+    cssMinify: true,
+  },
 })

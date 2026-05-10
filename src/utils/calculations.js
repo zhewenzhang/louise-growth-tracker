@@ -1,94 +1,103 @@
-﻿import { differenceInMonths, parse } from 'date-fns';
+﻿// 全部用原生 Date API，不再依賴 date-fns
 
-// 计算 Louise 的月龄
-export const calculateMonthAge = (birthdateStr) => {
-  const birthdate = parse(birthdateStr, 'yyyy-MM-dd', new Date());
-  return differenceInMonths(new Date(), birthdate);
-};
+// 計算矯正月齡（天）
+// birthDate: 實際出生日期
+// dueDate: 預產期（足月 40 週）
+// 返回 { chronologicalDays, correctedDays, prematurityDays, prematurityWeeks }
+export const calcCorrectedAge = (birthDate, dueDate) => {
+  if (!birthDate) return null;
+  const birth = new Date(birthDate);
+  const now = new Date();
+  const chronologicalDays = Math.floor((now - birth) / (1000 * 60 * 60 * 24));
 
-// 格式化月龄为 "X月 Y週"
-export const formatAge = (birthdateStr) => {
-  const birthdate = parse(birthdateStr, 'yyyy-MM-dd', new Date());
-  const months = differenceInMonths(new Date(), birthdate);
-  const weeks = Math.floor((new Date() - new Date(birthdate.getFullYear(), birthdate.getMonth() + months, birthdate.getDate())) / (7 * 24 * 60 * 60 * 1000));
-  return `${months}個月${weeks}週`;
-};
-
-/**
- * 计算宝宝月龄为 "x月x週x天" 格式
- * @param {string} birthDate - ISO 日期字符串 (YYYY-MM-DD)
- * @returns {string} 例如 "3月2週4天"
- */
-export const formatAgeDetailed = (birthDate) => {
-  if (!birthDate || typeof birthDate !== 'string') {
-    return '年龄未知';
+  if (!dueDate) {
+    return { chronologicalDays, correctedDays: chronologicalDays, prematurityDays: 0, prematurityWeeks: 0 };
   }
 
-  try {
-    const birth = new Date(birthDate + 'T00:00:00Z');
-    const today = new Date();
+  const due = new Date(dueDate);
+  const prematurityDays = Math.floor((due - birth) / (1000 * 60 * 60 * 24));
+  const correctedDays = chronologicalDays - prematurityDays;
+  const prematurityWeeks = (prematurityDays / 7).toFixed(1);
 
-    if (isNaN(birth.getTime())) {
-      return '日期无效';
-    }
-
-    const totalDays = Math.floor((today - birth) / (1000 * 60 * 60 * 24));
-
-    if (totalDays < 0) {
-      return '未出生';
-    }
-
-    const months = Math.floor(totalDays / 30);
-    const remainingDays = totalDays % 30;
-    const weeks = Math.floor(remainingDays / 7);
-    const days = remainingDays % 7;
-
-    return `${months}月${weeks}週${days}天`;
-  } catch (error) {
-    console.error('计算年龄出错:', error);
-    return '计算失败';
-  }
+  return { chronologicalDays, correctedDays, prematurityDays, prematurityWeeks };
 };
 
-/**
- * 简化版 - 只显示月龄
- */
-export const formatAgeSimple = (birthDate) => {
-  if (!birthDate || typeof birthDate !== 'string') {
-    return '年龄未知';
-  }
+// 統一年齡顯示（取代 formatCorrectedAge + formatAgeDetailed）
+// 一歲前：X個月Y天（Z週W天）· 矯正資訊（如有早產）
+// 一歲後：X歲Y個月Z天
+export const formatBabyAge = (birthDate, dueDate) => {
+  if (!birthDate) return '';
 
-  try {
-    const birth = new Date(birthDate + 'T00:00:00Z');
-    const today = new Date();
-    const totalDays = Math.floor((today - birth) / (1000 * 60 * 60 * 24));
-    const months = Math.floor(totalDays / 30);
-    return `${months}個月`;
-  } catch (error) {
-    return '年龄未知';
-  }
-};
+  const birth = new Date(birthDate);
+  const now = new Date();
+  const chronologicalDays = Math.floor((now - birth) / (1000 * 60 * 60 * 24));
 
-// 计算体重增长趋势
-export const calculateWeightTrend = (records) => {
-  if (records.length < 2) return null;
-  const sorted = [...records].sort((a, b) => new Date(b.date) - new Date(a.date));
-  const latest = sorted[0].value;
-  const previous = sorted[1].value;
-  return {
-    change: latest - previous,
-    percentage: ((latest - previous) / previous * 100).toFixed(1)
+  // 計算早產
+  let prematurityDays = 0;
+  if (dueDate) {
+    const due = new Date(dueDate);
+    prematurityDays = Math.floor((due - birth) / (1000 * 60 * 60 * 24));
+  }
+  const correctedDays = chronologicalDays - prematurityDays;
+
+  // [helper] 天數轉月+日
+  const toMonthsDays = (d) => {
+    const m = Math.floor(d / 30);
+    return { months: m, days: d - m * 30 };
   };
+
+  // ===== 一歲前 =====
+  if (chronologicalDays < 365) {
+    const { months, days } = toMonthsDays(chronologicalDays);
+    const weeks = Math.floor(chronologicalDays / 7);
+    const wDays = chronologicalDays % 7;
+
+    // 主顯示：幾個月幾天
+    let text;
+    if (months > 0) {
+      text = `${months}個月`;
+      if (days > 0) text += `${days}天`;
+    } else {
+      text = `${chronologicalDays}天`;
+    }
+
+    // 括號：幾週幾天
+    text += `（${weeks}週`;
+    if (wDays > 0) text += `${wDays}天`;
+    text += `）`;
+
+    // 早產標註
+    if (prematurityDays > 0) {
+      if (correctedDays < 0) {
+        text += ` · 矯正尚未足月`;
+      } else if (correctedDays < 730) {
+        const cm = Math.floor(correctedDays / 30);
+        const cd = correctedDays % 30;
+        text += ` · 矯正${cm}個月`;
+        if (cd > 0) text += `${cd}天`;
+      }
+    }
+
+    return text;
+  }
+
+  // ===== 一歲後 =====
+  const years = Math.floor(chronologicalDays / 365);
+  const remain = chronologicalDays % 365;
+  const months = Math.floor(remain / 30);
+  const days = remain % 30;
+
+  let text = `${years}歲${months}個月`;
+  if (days > 0) text += `${days}天`;
+  return text;
 };
 
-// 转换时间格式
-export const timeToMinutes = (timeStr) => {
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  return hours * 60 + minutes;
-};
-
-export const minutesToTime = (minutes) => {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+// 保留舊函數供 ChartModal 使用
+export const calcCorrectedWeeks = (birthDate, dueDate, targetDate) => {
+  const birth = new Date(birthDate);
+  const due = dueDate ? new Date(dueDate) : birth;
+  const target = targetDate ? new Date(targetDate) : new Date();
+  const prematurityDays = (due - birth) / (1000 * 60 * 60 * 24);
+  const chronologicalDays = (target - birth) / (1000 * 60 * 60 * 24);
+  return (chronologicalDays - prematurityDays) / 7;
 };

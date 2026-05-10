@@ -22,14 +22,14 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
+        <div className="flex-1 flex flex-col items-center justify-center p-4 text-center" style={{ background: 'var(--bg)', fontFamily: 'var(--font-body)' }}>
           <p className="text-2xl mb-2">😔 應用出錯了</p>
-          <p className="text-white/50 mb-4">{this.state.error?.message}</p>
+          <p className="mb-4" style={{ opacity: 0.6 }}>{this.state.error?.message}</p>
           <button
             onClick={() => window.location.reload()}
-            className="lg px-6 py-2 text-rose hover:bg-white/10"
+            className="btn"
           >
-            刷新頁面
+            🔄 刷新頁面
           </button>
         </div>
       );

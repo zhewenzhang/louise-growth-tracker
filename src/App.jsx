@@ -1,90 +1,71 @@
-﻿import React, { useState, useEffect } from 'react';
-import { AppProvider, useApp } from './context/AppContext.jsx';
-import ToastProvider from './context/ToastContext.jsx';
+﻿import React, { useState } from 'react';
+import { Home, TrendingUp, Heart, BookOpen } from 'lucide-react';
+import { AppProvider } from './context/AppContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary';
-import Onboarding from './components/Onboarding';
-import Home from './components/pages/Home';
+import Dashboard from './components/Dashboard';
 import Growth from './components/pages/Growth';
-import Daily from './components/pages/Daily';
 import Health from './components/pages/Health';
 import Memories from './components/pages/Memories';
-import Navigation from './components/Navigation';
-import FAB from './components/FAB';
-import QuickRecord from './components/pages/QuickRecord';
+
+const pages = [
+  { id: 'home', label: '首頁', icon: Home, component: Dashboard },
+  { id: 'growth', label: '成長', icon: TrendingUp, component: Growth },
+  { id: 'health', label: '健康', icon: Heart, component: Health },
+  { id: 'memories', label: '回憶', icon: BookOpen, component: Memories },
+];
 
 const AppContent = () => {
   const [currentPage, setCurrentPage] = useState('home');
-  const [quickRecordType, setQuickRecordType] = useState(null);
-  const { isDarkMode, user } = useApp();
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [initialized, setInitialized] = useState(false);
 
-  // 修复暗黑模式：确保 html 元素正确设置 class
-  useEffect(() => {
-    const htmlElement = document.documentElement;
-    // 初始化时设置
-    if (isDarkMode) {
-      htmlElement.classList.add('dark');
-      htmlElement.classList.remove('light');
-    } else {
-      htmlElement.classList.add('light');
-      htmlElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
-
-  // Check onboarding status on mount
-  useEffect(() => {
-    // Check if user needs onboarding
-    const needsOnboarding = !user.name || !user.birthDate || 
-      (user.name === 'Louise' && user.birthDate === '2026-04-26');
-    
-    if (needsOnboarding) {
-      // Clear old defaults if present
-      if (user.name === 'Louise' && user.birthDate === '2026-04-26') {
-        // Don't clear here - let onboarding handle it
-      }
-      setShowOnboarding(true);
-    }
-    setInitialized(true);
-  }, []);
-
-  const handleOnboardingComplete = () => {
-    setShowOnboarding(false);
-  };
-
-  const pages = {
-    home: <Home onOpenQuickRecord={setQuickRecordType} />,
-    growth: <Growth />,
-    daily: <Daily onOpenQuickRecord={setQuickRecordType} />,
-    health: <Health onOpenQuickRecord={setQuickRecordType} />,
-    memories: <Memories onOpenQuickRecord={setQuickRecordType} />
-  };
-
-  if (!initialized) return null;
+  const ActivePage = pages.find(p => p.id === currentPage)?.component || Dashboard;
 
   return (
-    <div className={isDarkMode ? 'dark' : 'light'}>
-      {showOnboarding ? (
-        <Onboarding onComplete={handleOnboardingComplete} />
-      ) : (
-        <div
-          className="flex flex-col h-screen transition-colors duration-300"
-          style={{
-            background: isDarkMode
-              ? 'linear-gradient(135deg, #1e0d14 0%, #2d1420 100%)'
-              : 'linear-gradient(135deg, #f5f1ed 0%, #ece8e3 100%)'
-          }}
-        >
-          {pages[currentPage]}
+    <div className="flex flex-col h-screen" style={{ background: 'var(--bg)' }}>
+      {/* Page content — scrollable */}
+      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: '80px' }}>
+        <ActivePage onNavigate={setCurrentPage} />
+      </div>
 
-          <Navigation currentPage={currentPage} setCurrentPage={setCurrentPage} />
-          <FAB onSelect={setQuickRecordType} />
-
-          {quickRecordType && (
-            <QuickRecord type={quickRecordType} onClose={() => setQuickRecordType(null)} />
-          )}
+      {/* Bottom navigation — hand-drawn style */}
+      <nav style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40,
+        background: '#fff',
+        borderTop: '3px solid var(--fg)',
+        boxShadow: '0 -4px 0px 0px #2d2d2d',
+        borderRadius: '255px 25px 225px 25px / 25px 225px 25px 255px',
+      }}>
+        <div className="flex items-center justify-around" style={{ height: '72px', padding: '0 8px' }}>
+          {pages.map(({ id, label, icon: Icon }) => {
+            const isActive = id === currentPage;
+            return (
+              <button
+                key={id}
+                onClick={() => setCurrentPage(id)}
+                className="relative flex flex-col items-center justify-center flex-1 h-full"
+                style={{
+                  fontFamily: 'var(--font-body)',
+                  color: isActive ? 'var(--accent)' : 'var(--fg)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontWeight: isActive ? 700 : 400,
+                  fontSize: '11px',
+                  transition: 'all 0.15s ease',
+                  transform: isActive ? 'translateY(-4px)' : 'none',
+                }}
+              >
+                {isActive && (
+                  <div style={{
+                    position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)',
+                    width: 28, height: 4, borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px',
+                    background: 'var(--accent)',
+                  }} />
+                )}
+                <Icon size={isActive ? 26 : 22} strokeWidth={isActive ? 3 : 2} />
+                <span style={{ marginTop: 2 }}>{label}</span>
+              </button>
+            );
+          })}
         </div>
-      )}
+      </nav>
     </div>
   );
 };
@@ -92,11 +73,9 @@ const AppContent = () => {
 function App() {
   return (
     <ErrorBoundary>
-      <ToastProvider>
-        <AppProvider>
-          <AppContent />
-        </AppProvider>
-      </ToastProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
     </ErrorBoundary>
   );
 }
