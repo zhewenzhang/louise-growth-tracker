@@ -47,38 +47,3 @@ export const calcPercentile = (metric, value, correctedAgeMonths) => {
   return { percentile: '>P97', label: '需關注', color: 'red' };
 };
 
-// 為 ChartModal 生成百分位參考線 datasets
-// maxCorrectedMonths: 寶寶的最大矯正月齡
-export const getPercentileDatasets = (metric, maxCorrectedMonths) => {
-  if (maxCorrectedMonths < 0) return [];
-
-  const ageMax = Math.max(2, Math.ceil(maxCorrectedMonths) + 1);
-  const agePoints = [];
-  for (let a = 0; a <= ageMax; a += 0.25) {
-    agePoints.push(Math.round(a * 100) / 100);
-  }
-
-  const lineStyles = {
-    P3: { color: 'rgba(255,77,77,0.25)', width: 1, dash: [6, 4] },
-    P15: { color: 'rgba(255,165,0,0.2)', width: 1, dash: [6, 4] },
-    P50: { color: 'rgba(45,93,161,0.5)', width: 2.5, dash: [] },
-    P85: { color: 'rgba(255,165,0,0.2)', width: 1, dash: [6, 4] },
-    P97: { color: 'rgba(255,77,77,0.25)', width: 1, dash: [6, 4] },
-  };
-
-  return PERCENTILE_LABELS.map(label => ({
-    label: `WHO ${label}`,
-    data: agePoints.map(a => {
-      const ref = getWHOReference(metric, a);
-      return ref ? ref[label] : null;
-    }),
-    borderColor: lineStyles[label].color,
-    backgroundColor: 'transparent',
-    borderWidth: lineStyles[label].width,
-    borderDash: lineStyles[label].dash,
-    pointRadius: 0,
-    fill: false,
-    tension: 0.3,
-    order: 1, // 讓參考線畫在數據線後面
-  }));
-};

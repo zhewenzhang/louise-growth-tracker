@@ -1,27 +1,5 @@
 ﻿// 全部用原生 Date API，不再依賴 date-fns
 
-// 計算矯正月齡（天）
-// birthDate: 實際出生日期
-// dueDate: 預產期（足月 40 週）
-// 返回 { chronologicalDays, correctedDays, prematurityDays, prematurityWeeks }
-export const calcCorrectedAge = (birthDate, dueDate) => {
-  if (!birthDate) return null;
-  const birth = new Date(birthDate);
-  const now = new Date();
-  const chronologicalDays = Math.floor((now - birth) / (1000 * 60 * 60 * 24));
-
-  if (!dueDate) {
-    return { chronologicalDays, correctedDays: chronologicalDays, prematurityDays: 0, prematurityWeeks: 0 };
-  }
-
-  const due = new Date(dueDate);
-  const prematurityDays = Math.floor((due - birth) / (1000 * 60 * 60 * 24));
-  const correctedDays = chronologicalDays - prematurityDays;
-  const prematurityWeeks = (prematurityDays / 7).toFixed(1);
-
-  return { chronologicalDays, correctedDays, prematurityDays, prematurityWeeks };
-};
-
 // 統一年齡顯示（取代 formatCorrectedAge + formatAgeDetailed）
 // 一歲前：X個月Y天（Z週W天）· 矯正資訊（如有早產）
 // 一歲後：X歲Y個月Z天
