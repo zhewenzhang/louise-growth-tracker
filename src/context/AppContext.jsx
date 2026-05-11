@@ -8,6 +8,7 @@ import {
   saveVaccinesToFirestore, loadVaccinesFromFirestore,
   saveMilestoneToFirestore, loadMilestonesFromFirestore, deleteMilestoneFromFirestore,
   saveDiaryToFirestore, loadDiaryFromFirestore, deleteDiaryFromFirestore,
+  saveBloodPressureToFirestore, loadBloodPressureFromFirestore, deleteBloodPressureFromFirestore,
 } from '../services/firestoreService';
 
 const AppContext = createContext();
@@ -20,6 +21,7 @@ export const AppProvider = ({ children }) => {
   );
   const [milestones, setMilestones] = useLocalStorage('louise_milestones', []);
   const [diaryEntries, setDiaryEntries] = useLocalStorage('louise_diary', []);
+  const [bpRecords, setBpRecords] = useLocalStorage('louise_blood_pressure', []);
   const [loaded, setLoaded] = useState(false);
   const [firestoreStatus, setFirestoreStatus] = useState('connecting'); // 'connecting' | 'connected' | 'empty' | 'error'
 
@@ -96,6 +98,19 @@ export const AppProvider = ({ children }) => {
           const lsDiary = JSON.parse(localStorage.getItem('louise_diary') || '[]');
           if (lsDiary.length > 0) {
             for (const r of lsDiary) await saveDiaryToFirestore(r);
+          }
+        }
+
+        // Blood Pressure — Firestore 優先
+        const remoteBp = await loadBloodPressureFromFirestore();
+        if (remoteBp && remoteBp.length > 0) {
+          setBpRecords(remoteBp);
+          localStorage.setItem('louise_blood_pressure', JSON.stringify(remoteBp));
+          anySuccess = true;
+        } else {
+          const lsBp = JSON.parse(localStorage.getItem('louise_blood_pressure') || '[]');
+          if (lsBp.length > 0) {
+            for (const r of lsBp) await saveBloodPressureToFirestore(r);
           }
         }
 
@@ -181,6 +196,17 @@ export const AppProvider = ({ children }) => {
     deleteDiaryFromFirestore(id);
   };
 
+  // Blood Pressure
+  const addBpRecord = (r) => {
+    const record = { ...r, id: r.id || Date.now().toString() };
+    setBpRecords(prev => [...prev, record]);
+    saveBloodPressureToFirestore(record);
+  };
+  const deleteBpRecord = (id) => {
+    setBpRecords(prev => prev.filter(r => r.id !== id));
+    deleteBloodPressureFromFirestore(id);
+  };
+
   // Export / Import
   const exportData = () => {
     const data = { user, growthRecords, vaccineRecords, milestones, diaryEntries, exportDate: new Date().toISOString() };
@@ -244,6 +270,7 @@ export const AppProvider = ({ children }) => {
       vaccineRecords, toggleVaccine, addCustomVaccine, updateVaccineDate,
       milestones, addMilestone, deleteMilestone,
       diaryEntries, addDiaryEntry, deleteDiaryEntry,
+      bpRecords, addBpRecord, deleteBpRecord,
       exportData, importData,
       firestoreStatus,
     }}>

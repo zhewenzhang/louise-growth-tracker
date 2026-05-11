@@ -169,3 +169,31 @@ export const loadDiaryFromFirestore = async () => {
 export const deleteDiaryFromFirestore = async (id) => {
   try { await deleteDoc(doc(db, 'diary_entries', id)); } catch (e) { console.warn('Firestore delete diary:', e.message); }
 };
+
+// ── Blood Pressure ──
+export const saveBloodPressureToFirestore = async (record) => {
+  try {
+    await setDoc(doc(db, 'blood_pressure', record.id), {
+      userId: USER_ID,
+      date: record.date,
+      time: record.time || '',
+      systolic: record.systolic,
+      diastolic: record.diastolic,
+      pulse: record.pulse,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (e) { console.warn('Firestore save BP:', e.message); }
+};
+
+export const loadBloodPressureFromFirestore = async () => {
+  try {
+    const snap = await getDocs(collection(db, 'blood_pressure'));
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    data.sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00')));
+    return data;
+  } catch (e) { console.warn('Firestore load BP:', e.message); return null; }
+};
+
+export const deleteBloodPressureFromFirestore = async (id) => {
+  try { await deleteDoc(doc(db, 'blood_pressure', id)); } catch (e) { console.warn('Firestore delete BP:', e.message); }
+};
