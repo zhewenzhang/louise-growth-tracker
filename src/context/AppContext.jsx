@@ -1,6 +1,7 @@
 ﻿import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { DEFAULT_VACCINES, calcVaccineDates } from '../data/vaccines';
+import { ensureAuth } from '../lib/firebase';
 import {
   saveUserToFirestore, loadUserFromFirestore,
   saveGrowthToFirestore, loadGrowthFromFirestore, deleteGrowthFromFirestore,
@@ -25,6 +26,9 @@ export const AppProvider = ({ children }) => {
   // 初始化：從 Firestore 同步數據（Firestore 為權威來源）
   useEffect(() => {
     (async () => {
+      // 匿名登入（背景執行，不阻塞功能）
+      ensureAuth();
+
       let anySuccess = false;
       try {
         // User
