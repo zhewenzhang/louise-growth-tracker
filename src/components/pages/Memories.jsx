@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
+import { genId } from '../../utils/id';
 
 const EMOJI_LIST = [
   '😊', '🎉', '👶', '🍼', '👣', '🦷', '🚶', '🗣️', '🎨', '🎵',
@@ -23,7 +24,7 @@ const Memories = () => {
     if (!milestoneForm.title || !milestoneForm.date) return;
 
     addMilestone({
-      id: Date.now().toString(),
+      id: genId(),
       ...milestoneForm,
     });
 
@@ -36,7 +37,7 @@ const Memories = () => {
     if (!diaryForm.title || !diaryForm.date || !diaryForm.content) return;
 
     addDiaryEntry({
-      id: Date.now().toString(),
+      id: genId(),
       ...diaryForm,
     });
 

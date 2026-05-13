@@ -171,14 +171,37 @@ const Dashboard = ({ onNavigate }) => {
     <div className="p-4 space-y-5" style={{ paddingBottom: '20px' }}>
       {/* Greeting */}
       <div>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2.5rem', lineHeight: 1.2, color: 'var(--fg)' }}>
-          {(() => { const h = new Date().getHours(); return h < 12 ? '早安 ☀️' : h < 18 ? '午安 🌤️' : '晚安 🌙'; })()}
-        </h1>
-        {user?.name && (
-          <p style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', color: 'var(--accent)', marginTop: 2 }}>
-            {user.name}
-          </p>
-        )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2.5rem', lineHeight: 1.2, color: 'var(--fg)' }}>
+              {(() => { const h = new Date().getHours(); return h < 12 ? '早安 ☀️' : h < 18 ? '午安 🌤️' : '晚安 🌙'; })()}
+            </h1>
+            {user?.name && (
+              <p style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', color: 'var(--accent)', marginTop: 2 }}>
+                {user.name}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => onNavigate?.('settings')}
+            style={{
+              background: '#fff',
+              border: '2px solid var(--fg)',
+              borderRadius: 'var(--wobbly-sm)',
+              padding: '8px 10px',
+              boxShadow: 'var(--shadow-sm)',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+            title="設定"
+          >
+            ⚙️
+          </button>
+        </div>
         {babyAge && (
           <p style={{ fontFamily: 'var(--font-body)', fontSize: '1rem', color: 'var(--fg)', opacity: 0.6, marginTop: 4 }}>
             {babyAge}

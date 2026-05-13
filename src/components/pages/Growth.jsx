@@ -1,5 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
+import { genId } from '../../utils/id';
 
 const TABS = [
   { id: 'weight', label: '⚖️ 體重', unit: 'kg', step: '0.001', placeholder: '例如：3.256', showTime: false },
@@ -24,7 +25,7 @@ const Growth = () => {
     e.preventDefault();
     if (!date) return;
     const record = {
-      id: Date.now().toString(),
+      id: genId(),
       date,
       type: activeTab,
       unit: activeTabInfo.unit,

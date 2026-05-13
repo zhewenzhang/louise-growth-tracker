@@ -21,5 +21,19 @@ export const useLocalStorage = (key, initialValue) => {
     }
   };
 
+  // 監聽其他 tab 的 localStorage 變化
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key !== key || e.newValue === null) return;
+      try {
+        setStoredValue(JSON.parse(e.newValue));
+      } catch (error) {
+        console.error(`Error syncing localStorage key "${key}":`, error);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [key]);
+
   return [storedValue, setValue];
 };

@@ -1,33 +1,6 @@
 import React, { useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
-
-// ====== WHO 女嬰 0-12 週參考數據 ======
-const WHO = {
-  weight: {
-    P3:  [2.4,2.6,2.8,3.0,3.2,3.4,3.5,3.7,3.8,3.9,4.0,4.1,4.2],
-    P15: [2.7,2.9,3.2,3.4,3.6,3.8,4.0,4.1,4.3,4.4,4.5,4.6,4.7],
-    P50: [3.2,3.4,3.7,3.9,4.1,4.3,4.5,4.7,4.8,5.0,5.1,5.2,5.4],
-    P85: [3.7,4.0,4.3,4.6,4.8,5.1,5.3,5.5,5.6,5.8,5.9,6.1,6.2],
-    P97: [4.2,4.5,4.8,5.1,5.3,5.5,5.7,5.9,6.1,6.3,6.5,6.7,6.8],
-    yMin: 1.5, yMax: 7.5, yStep: 0.5, unit: 'kg', label: '體重',
-  },
-  height: {
-    P3:  [45.6,46.7,47.8,48.8,49.7,50.5,51.3,52.0,52.6,53.3,53.9,54.5,55.0],
-    P15: [47.2,48.4,49.5,50.5,51.5,52.3,53.1,53.8,54.5,55.2,55.8,56.4,57.0],
-    P50: [49.4,50.5,51.7,52.7,53.7,54.6,55.5,56.3,57.0,57.7,58.4,59.0,59.7],
-    P85: [51.5,52.7,53.8,54.9,56.0,56.9,57.8,58.6,59.4,60.1,60.8,61.5,62.1],
-    P97: [53.1,54.3,55.4,56.5,57.5,58.4,59.3,60.1,60.9,61.6,62.3,63.0,63.6],
-    yMin: 42, yMax: 68, yStep: 2, unit: 'cm', label: '身高',
-  },
-  headCircumference: {
-    P3:  [31.7,32.3,33.0,33.6,34.1,34.6,35.1,35.5,35.9,36.2,36.5,36.8,37.1],
-    P15: [32.6,33.3,34.0,34.6,35.1,35.6,36.1,36.5,36.9,37.2,37.5,37.8,38.1],
-    P50: [34.0,34.7,35.4,36.0,36.6,37.1,37.6,38.0,38.4,38.8,39.1,39.5,39.8],
-    P85: [35.3,36.1,36.8,37.4,38.0,38.5,39.0,39.5,39.9,40.3,40.7,41.0,41.3],
-    P97: [36.3,37.0,37.7,38.3,38.9,39.4,39.9,40.4,40.8,41.2,41.6,41.9,42.2],
-    yMin: 28, yMax: 45, yStep: 2, unit: 'cm', label: '頭圍',
-  },
-};
+import { WHO_WEEKLY } from '../data/whoData';
 
 const BABY_COLORS = { weight: '#ff4d4d', height: '#2d5da1', headCircumference: '#2d7d46', chestCircumference: '#e67e22', feeding: '#e91e63' };
 const LABELS = { weight: '體重', height: '身高', headCircumference: '頭圍', chestCircumference: '胸圍', feeding: '奶量' };
@@ -53,7 +26,7 @@ const ChartModal = ({ metric, records, user, onClose }) => {
   const color = BABY_COLORS[metric] || '#2d2d2d';
   const label = LABELS[metric] || metric;
   const unit = UNITS[metric] || '';
-  const whoRef = WHO[metric];
+  const whoRef = WHO_WEEKLY[metric];
   const isWHO = !!whoRef;
 
   const sorted = [...records].sort((a, b) => new Date(a.date) - new Date(b.date));

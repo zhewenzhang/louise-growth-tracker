@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import { formatDueDate } from '../../data/vaccines';
+import { genId } from '../../utils/id';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 
@@ -302,7 +303,7 @@ const Health = () => {
               e.preventDefault();
               if (!bpDate || !bpTime || !bpSystolic || !bpDiastolic) return;
               addBpRecord({
-                id: Date.now().toString(),
+                id: genId(),
                 date: bpDate,
                 time: bpTime,
                 systolic: parseInt(bpSystolic),

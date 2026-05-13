@@ -1,23 +1,32 @@
 ﻿import React, { useState } from 'react';
-import { Home, TrendingUp, Heart, BookOpen } from 'lucide-react';
+import { Home, TrendingUp, Heart, BookOpen, Settings as SettingsIcon } from 'lucide-react';
 import { AppProvider } from './context/AppContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard';
 import Growth from './components/pages/Growth';
 import Health from './components/pages/Health';
 import Memories from './components/pages/Memories';
+import Settings from './components/pages/Settings';
 
-const pages = [
+const navPages = [
+  { id: 'home', label: '首頁', icon: Home },
+  { id: 'growth', label: '成長', icon: TrendingUp },
+  { id: 'health', label: '健康', icon: Heart },
+  { id: 'memories', label: '回憶', icon: BookOpen },
+];
+
+const allPages = [
   { id: 'home', label: '首頁', icon: Home, component: Dashboard },
   { id: 'growth', label: '成長', icon: TrendingUp, component: Growth },
   { id: 'health', label: '健康', icon: Heart, component: Health },
   { id: 'memories', label: '回憶', icon: BookOpen, component: Memories },
+  { id: 'settings', label: '設定', icon: SettingsIcon, component: Settings },
 ];
 
 const AppContent = () => {
   const [currentPage, setCurrentPage] = useState('home');
 
-  const ActivePage = pages.find(p => p.id === currentPage)?.component || Dashboard;
+  const ActivePage = allPages.find(p => p.id === currentPage)?.component || Dashboard;
 
   return (
     <div className="flex flex-col h-screen" style={{ background: 'var(--bg)' }}>
@@ -35,7 +44,7 @@ const AppContent = () => {
         borderRadius: '255px 25px 225px 25px / 25px 225px 25px 255px',
       }}>
         <div className="flex items-center justify-around" style={{ height: '72px', padding: '0 8px' }}>
-          {pages.map(({ id, label, icon: Icon }) => {
+          {navPages.map(({ id, label, icon: Icon }) => {
             const isActive = id === currentPage;
             return (
               <button

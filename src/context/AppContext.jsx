@@ -2,6 +2,7 @@
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { DEFAULT_VACCINES, calcVaccineDates } from '../data/vaccines';
 import { ensureAuth } from '../lib/firebase';
+import { genId } from '../utils/id';
 import {
   saveUserToFirestore, loadUserFromFirestore,
   saveGrowthToFirestore, loadGrowthFromFirestore, deleteGrowthFromFirestore,
@@ -27,9 +28,21 @@ export const AppProvider = ({ children }) => {
 
   // 初始化：從 Firestore 同步數據（Firestore 為權威來源）
   useEffect(() => {
+    // Safety timeout: 即使 Firestore 完全不通，8 秒後強制進入離線模式
+    const timeoutId = setTimeout(() => {
+      setLoaded(prev => {
+        if (!prev) {
+          console.warn('⏱️ Firestore 載入超時，切換至離線模式');
+          setFirestoreStatus('error');
+          return true;
+        }
+        return prev;
+      });
+    }, 8000);
+
     (async () => {
-      // 匿名登入（背景執行，不阻塞功能）
-      ensureAuth();
+      // 匿名登入（必須先完成才能讀寫 Firestore，規則要求 auth != null）
+      await ensureAuth();
 
       let anySuccess = false;
       try {
@@ -120,12 +133,13 @@ export const AppProvider = ({ children }) => {
         setFirestoreStatus('error');
       }
       setLoaded(true);
+      clearTimeout(timeoutId);
     })();
   }, []);
 
   // Growth
   const addGrowthRecord = (r) => {
-    const record = { ...r, id: r.id || Date.now().toString() };
+    const record = { ...r, id: r.id || genId() };
     setGrowthRecords(prev => [...prev, record]);
     saveGrowthToFirestore(record);
   };
@@ -148,7 +162,7 @@ export const AppProvider = ({ children }) => {
   // 新增自定義疫苗
   const addCustomVaccine = (vaccine) => {
     const newVaccine = {
-      id: 'custom_' + Date.now().toString(),
+      id: 'custom_' + genId(),
       name: vaccine.name,
       dose: vaccine.dose || '1劑',
       recommendedAge: vaccine.recommendedAge || '自訂',
@@ -176,7 +190,7 @@ export const AppProvider = ({ children }) => {
 
   // Milestones
   const addMilestone = (r) => {
-    const record = { ...r, id: r.id || Date.now().toString() };
+    const record = { ...r, id: r.id || genId() };
     setMilestones(prev => [record, ...prev]);
     saveMilestoneToFirestore(record);
   };
@@ -187,7 +201,7 @@ export const AppProvider = ({ children }) => {
 
   // Diary
   const addDiaryEntry = (r) => {
-    const record = { ...r, id: r.id || Date.now().toString() };
+    const record = { ...r, id: r.id || genId() };
     setDiaryEntries(prev => [record, ...prev]);
     saveDiaryToFirestore(record);
   };
@@ -198,7 +212,7 @@ export const AppProvider = ({ children }) => {
 
   // Blood Pressure
   const addBpRecord = (r) => {
-    const record = { ...r, id: r.id || Date.now().toString() };
+    const record = { ...r, id: r.id || genId() };
     setBpRecords(prev => [...prev, record]);
     saveBloodPressureToFirestore(record);
   };
