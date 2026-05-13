@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
+import { getCurrentUid } from '../../lib/firebase';
 
 const Settings = () => {
   const { user, setUser, exportData, importData } = useApp();
@@ -11,6 +12,35 @@ const Settings = () => {
   const [saveStatus, setSaveStatus] = useState('');
   const [importStatus, setImportStatus] = useState('');
   const fileInputRef = useRef(null);
+  const [uid, setUid] = useState('');
+  const [copyStatus, setCopyStatus] = useState('');
+
+  useEffect(() => {
+    getCurrentUid().then(id => setUid(id || '未登入'));
+  }, []);
+
+  const handleCopyUid = () => {
+    navigator.clipboard.writeText(uid);
+    setCopyStatus('✅ 已複製');
+    setTimeout(() => setCopyStatus(''), 2000);
+  };
+
+  const rulesTemplate = `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth.uid in [
+        "${uid}"
+      ];
+    }
+  }
+}`;
+
+  const handleCopyRules = () => {
+    navigator.clipboard.writeText(rulesTemplate);
+    setCopyStatus('✅ 規則已複製');
+    setTimeout(() => setCopyStatus(''), 2000);
+  };
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -106,6 +136,66 @@ const Settings = () => {
           <p style={{ fontSize: '0.8rem', opacity: 0.6, fontFamily: 'var(--font-body)' }}>
             ⚠️ 匯入會覆蓋目前資料，建議先匯出一份作為還原點。
           </p>
+        </div>
+      </div>
+
+      {/* 雲端同步 */}
+      <div className="card">
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 12 }}>
+          🔒 雲端同步安全
+        </h3>
+        <div className="space-y-3">
+          <div>
+            <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>
+              當前裝置 UID
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={uid}
+                readOnly
+                style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}
+              />
+              <button type="button" onClick={handleCopyUid} className="btn-sm" style={{ flexShrink: 0 }}>
+                📋
+              </button>
+            </div>
+            <p style={{ fontSize: '0.75rem', opacity: 0.5, marginTop: 4, fontFamily: 'var(--font-body)' }}>
+              每個裝置/瀏覽器有獨立 UID。清除瀏覽器資料會產生新 UID。
+            </p>
+          </div>
+
+          <details>
+            <summary style={{ cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.9rem' }}>
+              📖 如何設定 Firestore 存取規則（必讀）
+            </summary>
+            <div style={{ marginTop: 12, fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.8 }}>
+              <p style={{ marginBottom: 8 }}>
+                前往 <a
+                  href="https://console.firebase.google.com/project/louise-tracker/firestore/rules"
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ color: 'var(--blue)', textDecoration: 'underline' }}
+                >Firebase Console → Firestore Rules</a>
+                ，複製下方規則貼上並發布：
+              </p>
+              <pre style={{
+                background: '#2d2d2d', color: '#fdfbf7',
+                padding: 12, borderRadius: 'var(--wobbly-sm)',
+                fontSize: '0.7rem', overflow: 'auto', fontFamily: 'monospace',
+                whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+              }}>{rulesTemplate}</pre>
+              <button type="button" onClick={handleCopyRules} className="btn-sm" style={{ marginTop: 8 }}>
+                📋 複製規則
+              </button>
+              <p style={{ marginTop: 8, fontSize: '0.75rem', opacity: 0.7 }}>
+                ⚠️ 其他裝置登入時會有不同 UID，需在 <code>request.auth.uid in [...]</code> 陣列中新增該 UID。
+              </p>
+            </div>
+          </details>
+
+          {copyStatus && (
+            <p style={{ textAlign: 'center', fontFamily: 'var(--font-body)', color: 'var(--green)' }}>{copyStatus}</p>
+          )}
         </div>
       </div>
 

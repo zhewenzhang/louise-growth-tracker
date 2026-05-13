@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDRCQgUnwfSJAAk577TmZGg82pB_l3fe1w",
@@ -12,7 +12,15 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+
+// 啟用 IndexedDB 持久化快取 + 多 tab 同步
+// 效果：離線寫入會自動 queue，重連後自動 replay
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
+});
+
 export const auth = getAuth(app);
 
 // 匿名登入（在 AppContext 初始化時呼叫）
@@ -27,5 +35,14 @@ export const ensureAuth = async () => {
     return null;
   }
 };
+
+// 取得當前 uid（若尚未登入會等到登入完成）
+export const getCurrentUid = () => new Promise((resolve) => {
+  if (auth.currentUser) return resolve(auth.currentUser.uid);
+  const unsub = onAuthStateChanged(auth, (user) => {
+    unsub();
+    resolve(user?.uid || null);
+  });
+});
 
 export default db;

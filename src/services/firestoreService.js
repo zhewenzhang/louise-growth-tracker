@@ -92,6 +92,8 @@ export const saveVaccinesToFirestore = async (vaccines) => {
         ageMonths: v.ageMonths,
         completed: v.completed,
         date: v.date,
+        dueDate: v.dueDate || '',
+        isCustom: v.isCustom || false,
         updatedAt: new Date().toISOString(),
       }, { merge: true });
     });

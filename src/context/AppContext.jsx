@@ -260,8 +260,18 @@ export const AppProvider = ({ children }) => {
   // ── User ──
   const updateUser = (u) => {
     const newUser = typeof u === 'function' ? u(user) : u;
+    const birthChanged = newUser.birthDate !== user?.birthDate;
+
     setUser(newUser);
     saveUserToFirestore(newUser);
+
+    // 生日變動時重新計算所有疫苗的 dueDate（保留已完成狀態和自訂疫苗）
+    if (birthChanged && newUser.birthDate) {
+      const recalc = calcVaccineDates(vaccineRecords, newUser.birthDate);
+      setVaccineRecords(recalc);
+      localStorage.setItem('louise_vaccines', JSON.stringify(recalc));
+      saveVaccinesToFirestore(recalc);
+    }
   };
 
   if (!loaded) {
