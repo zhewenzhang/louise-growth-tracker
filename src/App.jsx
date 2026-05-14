@@ -7,6 +7,8 @@ import Growth from './components/pages/Growth';
 import Health from './components/pages/Health';
 import Memories from './components/pages/Memories';
 import Settings from './components/pages/Settings';
+import LockScreen from './components/LockScreen';
+import { hasPinSet, isUnlocked } from './utils/pinLock';
 
 const navPages = [
   { id: 'home', label: '首頁', icon: Home },
@@ -79,12 +81,25 @@ const AppContent = () => {
   );
 };
 
-function App() {
-  return (
-    <ErrorBoundary>
+const AppGate = () => {
+  const [unlocked, setUnlocked] = useState(() => isUnlocked());
+  const pinSet = hasPinSet();
+
+  if (!pinSet || unlocked) {
+    return (
       <AppProvider>
         <AppContent />
       </AppProvider>
+    );
+  }
+
+  return <LockScreen onUnlock={() => setUnlocked(true)} />;
+};
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AppGate />
     </ErrorBoundary>
   );
 }

@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import { getCurrentUid } from '../../lib/firebase';
+import { hasPinSet, removePin } from '../../utils/pinLock';
+import PinSetup from '../PinSetup';
 
 const Settings = () => {
   const { user, setUser, exportData, importData } = useApp();
@@ -14,6 +16,10 @@ const Settings = () => {
   const fileInputRef = useRef(null);
   const [uid, setUid] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [pinSetupMode, setPinSetupMode] = useState('setup');
+  const [pinExists, setPinExists] = useState(hasPinSet());
+  const [pinStatus, setPinStatus] = useState('');
 
   useEffect(() => {
     getCurrentUid().then(id => setUid(id || '未登入'));
@@ -40,6 +46,26 @@ service cloud.firestore {
     navigator.clipboard.writeText(rulesTemplate);
     setCopyStatus('✅ 規則已複製');
     setTimeout(() => setCopyStatus(''), 2000);
+  };
+
+  const handlePinSetupDone = () => {
+    setShowPinSetup(false);
+    setPinExists(true);
+    setPinStatus(pinSetupMode === 'change' ? '✅ PIN 已更新' : '✅ PIN 已設定');
+    setTimeout(() => setPinStatus(''), 2000);
+  };
+
+  const handleSetPin = () => {
+    setPinSetupMode(pinExists ? 'change' : 'setup');
+    setShowPinSetup(true);
+  };
+
+  const handleRemovePin = () => {
+    if (!confirm('⚠️ 確定要移除 PIN 鎖嗎？移除後所有人都能直接打開 App。')) return;
+    removePin();
+    setPinExists(false);
+    setPinStatus('✅ PIN 鎖已移除');
+    setTimeout(() => setPinStatus(''), 2000);
   };
 
   const handleSave = (e) => {
@@ -195,6 +221,36 @@ service cloud.firestore {
 
           {copyStatus && (
             <p style={{ textAlign: 'center', fontFamily: 'var(--font-body)', color: 'var(--green)' }}>{copyStatus}</p>
+          )}
+        </div>
+      </div>
+
+      {/* PIN 密碼鎖 */}
+      <div className="card">
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 12 }}>
+          🔐 PIN 密碼鎖
+        </h3>
+        <div className="space-y-3">
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.9rem', opacity: 0.7 }}>
+            狀態：{pinExists
+              ? <strong style={{ color: 'var(--green)' }}>✅ 已啟用</strong>
+              : <strong style={{ color: 'var(--accent)' }}>❌ 未啟用</strong>}
+          </p>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.6 }}>
+            啟用後，每次打開 App 需輸入 6 位 PIN（解鎖後 7 天內免再輸入）。
+          </p>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button onClick={handleSetPin} className="btn" style={{ flex: 1, minWidth: '140px' }}>
+              {pinExists ? '🔁 修改 PIN' : '✨ 設定 PIN'}
+            </button>
+            {pinExists && (
+              <button onClick={handleRemovePin} className="btn" style={{ flex: 1, minWidth: '140px' }}>
+                🗑️ 移除 PIN
+              </button>
+            )}
+          </div>
+          {pinStatus && (
+            <p style={{ textAlign: 'center', fontFamily: 'var(--font-body)', color: 'var(--green)' }}>{pinStatus}</p>
           )}
         </div>
       </div>
