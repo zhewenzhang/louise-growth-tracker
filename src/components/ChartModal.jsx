@@ -47,15 +47,15 @@ const ChartModal = ({ metric, records, user, onClose }) => {
   }, [sorted, isWHO, user?.birthDate, user?.dueDate]);
 
   // ===== WHO 百分位線 =====
+  // WHO 標準資料只有 0-12 週（足月起算）
+  // 早產兒的矯正週齡可能是負數，但 WHO 線永遠從 0 週畫到 12 週（或寶寶最後資料 +1 週，取較小者）
   const whoDatasets = useMemo(() => {
     if (!whoRef) return [];
-    const firstX = babyPoints[0]?.x ?? -2;
-    const lastX = babyPoints[babyPoints.length-1]?.x ?? 4;
-    const pad = Math.max(0.5, (lastX - firstX) * 0.1);
-    const x0 = Math.floor(Math.min(firstX, 0) - pad);
-    const x1 = Math.ceil(lastX + pad);
+    const lastBabyX = babyPoints[babyPoints.length-1]?.x ?? 4;
+    // WHO 線結束於：寶寶最大週 +1，但不超過 12（資料上限），且至少到 4 週確保有可見線段
+    const whoEnd = Math.min(12, Math.max(4, Math.ceil(lastBabyX) + 1));
     const pts = [];
-    for (let w = Math.max(0, x0); w <= x1; w += 0.25) pts.push(parseFloat(w.toFixed(2)));
+    for (let w = 0; w <= whoEnd; w += 0.25) pts.push(parseFloat(w.toFixed(2)));
     return ['P3','P15','P50','P85','P97'].map(p => ({
       label: `WHO ${p}`,
       data: pts.map(w => ({ x: w, y: parseFloat(lerp(whoRef[p], w).toFixed(2)) })),
@@ -73,13 +73,23 @@ const ChartModal = ({ metric, records, user, onClose }) => {
   const yStep = whoRef?.yStep;
 
   // ===== X 軸（WHO: 線性週齡 / 非WHO: 日期類別） =====
+  const babyFirstX = babyPoints[0]?.x ?? 0;
+  const babyLastX = babyPoints[babyPoints.length-1]?.x ?? 4;
+  const xMin = Math.floor(Math.min(babyFirstX, 0) - 0.5);
+  const xMax = Math.ceil(Math.max(babyLastX, 4) + 0.5);
+
   const xScale = isWHO ? {
     type: 'linear',
-    min: Math.min(babyPoints[0]?.x ?? 0, 0) - 0.5,
-    max: Math.ceil((babyPoints[babyPoints.length-1]?.x ?? 4)) + 0.5,
+    min: xMin,
+    max: xMax,
     title: { display: true, text: '矯正週齡', font: { family: 'Patrick Hand', size: 11 }, color: '#999' },
     grid: { display: false },
-    ticks: { color: '#999', font: { family: 'Patrick Hand', size: 10 }, stepSize: 2, callback: v => v>=0 ? v+'w' : '' },
+    ticks: {
+      color: '#999',
+      font: { family: 'Patrick Hand', size: 10 },
+      stepSize: 2,
+      callback: v => v >= 0 ? v + 'w' : `−${Math.abs(v)}w`,
+    },
   } : {
     type: 'category',
     title: { display: true, text: '日期', font: { family: 'Patrick Hand', size: 11 }, color: '#999' },
