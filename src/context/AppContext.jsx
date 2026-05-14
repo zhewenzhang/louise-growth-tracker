@@ -49,7 +49,12 @@ export const AppProvider = ({ children }) => {
         // User
         const remoteUser = await loadUserFromFirestore();
         if (remoteUser?.name) {
-          setUser({ name: remoteUser.name, birthDate: remoteUser.birthDate, gender: remoteUser.gender || 'female' });
+          setUser({ 
+            name: remoteUser.name, 
+            birthDate: remoteUser.birthDate, 
+            dueDate: remoteUser.dueDate || remoteUser.birthDate, 
+            gender: remoteUser.gender || 'female' 
+          });
           anySuccess = true;
         } else if (!remoteUser) {
           // Firestore 沒有用戶數據，把 localStorage 的推上去
