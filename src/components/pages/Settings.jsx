@@ -264,6 +264,10 @@ service cloud.firestore {
           離線存儲：localStorage
         </p>
       </div>
+
+      {showPinSetup && (
+        <PinSetup mode={pinSetupMode} onDone={handlePinSetupDone} onSkip={() => setShowPinSetup(false)} />
+      )}
     </div>
   );
 };
