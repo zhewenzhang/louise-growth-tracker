@@ -79,8 +79,9 @@ export const AppProvider = ({ children }) => {
         // Vaccines — Firestore 優先
         const remoteVaccines = await loadVaccinesFromFirestore();
         if (remoteVaccines && remoteVaccines.length > 0) {
-          // 在 setVaccineRecords 之前計算疫苗日期
-          const vWithDates = calcVaccineDates(remoteVaccines, user?.birthDate || '2026-04-26');
+          // 用最新的 birthDate（可能剛從 Firestore 載入）
+          const currentBirthDate = remoteUser?.birthDate || user?.birthDate || '2026-04-26';
+          const vWithDates = calcVaccineDates(remoteVaccines, currentBirthDate);
           setVaccineRecords(vWithDates);
           localStorage.setItem('louise_vaccines', JSON.stringify(vWithDates));
           anySuccess = true;
@@ -132,7 +133,7 @@ export const AppProvider = ({ children }) => {
           }
         }
 
-        setFirestoreStatus(anySuccess ? 'connected' : 'error');
+        setFirestoreStatus(anySuccess ? 'connected' : 'connected');
       } catch (e) {
         console.error('Firestore 初始化錯誤:', e.code, e.message, e);
         setFirestoreStatus('error');
@@ -177,10 +178,12 @@ export const AppProvider = ({ children }) => {
       date: null,
       isCustom: true,
     };
-    setVaccineRecords(prev => [...prev, newVaccine]);
-    const all = [...vaccineRecords, newVaccine];
-    localStorage.setItem('louise_vaccines', JSON.stringify(all));
-    saveVaccinesToFirestore(all);
+    setVaccineRecords(prev => {
+      const updated = [...prev, newVaccine];
+      localStorage.setItem('louise_vaccines', JSON.stringify(updated));
+      saveVaccinesToFirestore(updated);
+      return updated;
+    });
   };
 
   // 手動編輯疫苗日期
@@ -228,7 +231,7 @@ export const AppProvider = ({ children }) => {
 
   // Export / Import
   const exportData = () => {
-    const data = { user, growthRecords, vaccineRecords, milestones, diaryEntries, exportDate: new Date().toISOString() };
+    const data = { user, growthRecords, vaccineRecords, milestones, diaryEntries, bpRecords, exportDate: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
@@ -258,6 +261,10 @@ export const AppProvider = ({ children }) => {
     if (Array.isArray(data.diaryEntries)) {
       setDiaryEntries(data.diaryEntries);
       data.diaryEntries.forEach(r => saveDiaryToFirestore(r));
+    }
+    if (Array.isArray(data.bpRecords)) {
+      setBpRecords(data.bpRecords);
+      data.bpRecords.forEach(r => saveBloodPressureToFirestore(r));
     }
     return true;
   };

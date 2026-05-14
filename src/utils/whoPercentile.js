@@ -17,7 +17,7 @@ export const getWHOReference = (metric, correctedAgeMonths) => {
 
   const age = Math.min(correctedAgeMonths, 24);
   const lower = table[Math.floor(age)];
-  const upper = table[Math.min(Math.ceil(age), 23)];
+  const upper = table[Math.min(Math.ceil(age), 24)];
 
   if (lower === upper) {
     return { ageMonths: lower[0], P3: lower[1], P15: lower[2], P50: lower[3], P85: lower[4], P97: lower[5] };

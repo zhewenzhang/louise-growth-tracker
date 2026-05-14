@@ -24,6 +24,8 @@ export const calcVaccineDates = (vaccines, birthDateStr) => {
   if (!birthDateStr) return vaccines;
   const birth = new Date(birthDateStr);
   return vaccines.map(v => {
+    // 保留自訂疫苗的手動日期
+    if (v.isCustom && v.dueDate) return v;
     const due = new Date(birth);
     due.setMonth(birth.getMonth() + v.ageMonths);
     return { ...v, dueDate: due.toISOString().split('T')[0] };

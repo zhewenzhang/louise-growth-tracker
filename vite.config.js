@@ -8,8 +8,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'scheduler'],
-          'vendor-firebase': ['firebase/app', 'firebase/firestore'],
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-firebase': ['firebase/app', 'firebase/firestore', 'firebase/auth'],
           'vendor-charts': ['chart.js', 'react-chartjs-2'],
         },
       },

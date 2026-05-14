@@ -8,19 +8,12 @@ const LockScreen = ({ onUnlock }) => {
   const [error, setError] = useState(false);
   const [shaking, setShaking] = useState(false);
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key >= '0' && e.key <= '9') handleInput(e.key);
-      else if (e.key === 'Backspace') handleDelete();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  });
-
   const handleInput = (digit) => {
-    if (pin.length >= PIN_LENGTH) return;
     setError(false);
-    setPin(prev => prev + digit);
+    setPin(prev => {
+      if (prev.length >= PIN_LENGTH) return prev;
+      return prev + digit;
+    });
   };
 
   const handleDelete = () => {
@@ -29,6 +22,13 @@ const LockScreen = ({ onUnlock }) => {
   };
 
   useEffect(() => {
+    const handler = (e) => {
+      if (e.key >= '0' && e.key <= '9') handleInput(e.key);
+      else if (e.key === 'Backspace') handleDelete();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  });  useEffect(() => {
     if (pin.length !== PIN_LENGTH) return;
     (async () => {
       const ok = await verifyPin(pin);
