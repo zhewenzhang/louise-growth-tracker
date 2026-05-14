@@ -31,6 +31,27 @@ const ChartModal = ({ metric, records, user, onClose }) => {
 
   const sorted = [...records].sort((a, b) => new Date(a.date) - new Date(b.date));
 
+  // ===== 奶量：按日聚合（min/max/avg） =====
+  const isFeeding = metric === 'feeding';
+  const feedingDaily = useMemo(() => {
+    if (!isFeeding) return null;
+    const map = new Map();
+    for (const r of sorted) {
+      const key = r.date;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(Number(r.value) || 0);
+    }
+    return Array.from(map.entries())
+      .map(([date, vals]) => {
+        const min = Math.min(...vals);
+        const max = Math.max(...vals);
+        const sum = vals.reduce((a, b) => a + b, 0);
+        const avg = sum / vals.length;
+        return { date, min, max, avg, sum, count: vals.length };
+      })
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [sorted, isFeeding]);
+
   // ===== 寶寶數據 =====
   const babyPoints = useMemo(() => {
     if (isWHO && user?.birthDate) {
@@ -39,12 +60,20 @@ const ChartModal = ({ metric, records, user, onClose }) => {
         y: r.value, date: r.date,
       }));
     }
+    // 奶量：用每日聚合資料
+    if (isFeeding && feedingDaily) {
+      return feedingDaily.map(d => ({
+        x: `${new Date(d.date).getMonth()+1}/${new Date(d.date).getDate()}`,
+        y: parseFloat(d.avg.toFixed(1)),
+        date: d.date, min: d.min, max: d.max, avg: d.avg, count: d.count,
+      }));
+    }
     // 非 WHO：用日期字串 X 軸
     return sorted.map((r, i) => ({
       x: `${new Date(r.date).getMonth()+1}/${new Date(r.date).getDate()}`,
       y: r.value, date: r.date, idx: i,
     }));
-  }, [sorted, isWHO, user?.birthDate, user?.dueDate]);
+  }, [sorted, isWHO, user?.birthDate, user?.dueDate, isFeeding, feedingDaily]);
 
   // ===== WHO 百分位線 =====
   // WHO 標準資料只有 0-12 週（足月起算）
@@ -97,8 +126,32 @@ const ChartModal = ({ metric, records, user, onClose }) => {
     ticks: { color: '#999', font: { family: 'Patrick Hand', size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 8 },
   };
 
+  // ===== 奶量 min/max 範圍帶 =====
+  const feedingRangeDatasets = useMemo(() => {
+    if (!isFeeding || !babyPoints.length) return [];
+    const maxData = babyPoints.map(p => ({ x: p.x, y: p.max }));
+    const minData = babyPoints.map(p => ({ x: p.x, y: p.min }));
+    return [
+      {
+        label: '最高', data: maxData,
+        borderColor: 'rgba(233,30,99,0.35)',
+        backgroundColor: 'rgba(233,30,99,0.10)',
+        borderWidth: 1.5, borderDash: [4, 4],
+        pointRadius: 0, fill: '+1', tension: 0.3,
+      },
+      {
+        label: '最低', data: minData,
+        borderColor: 'rgba(233,30,99,0.35)',
+        backgroundColor: 'transparent',
+        borderWidth: 1.5, borderDash: [4, 4],
+        pointRadius: 0, fill: false, tension: 0.3,
+      },
+    ];
+  }, [isFeeding, babyPoints]);
+
   const chartData = {
     datasets: [
+      ...feedingRangeDatasets,
       { label, data: babyPoints, borderColor: color, backgroundColor: color+'18',
         borderWidth: 3, pointBackgroundColor: color, pointBorderColor: '#fff',
         pointBorderWidth: 2, pointRadius: 6, pointHoverRadius: 8,
@@ -114,7 +167,7 @@ const ChartModal = ({ metric, records, user, onClose }) => {
         onClick={e=>e.stopPropagation()}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8 }}>
           <h3 style={{ fontFamily:'var(--font-display)',fontSize:'1.25rem' }}>
-            📈 {label}{isWHO ? '（矯正週齡）' : ''}
+            📈 {label}{isWHO ? '（矯正週齡）' : isFeeding ? '（每日統計）' : ''}
           </h3>
           <button onClick={onClose} className="btn-sm" style={{ color:'var(--accent)' }}>✕</button>
         </div>
@@ -139,6 +192,16 @@ const ChartModal = ({ metric, records, user, onClose }) => {
                   },
                   label:(ctx)=>{
                     if(ctx.dataset.label?.startsWith('WHO')) return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} ${unit}`;
+                    if(isFeeding && ctx.dataset.label === label) {
+                      const r = ctx.raw;
+                      return [
+                        `日均：${r.avg.toFixed(1)} ${unit}`,
+                        `最高：${r.max} ${unit}`,
+                        `最低：${r.min} ${unit}`,
+                        `共 ${r.count} 筆`,
+                      ];
+                    }
+                    if(isFeeding && (ctx.dataset.label === '最高' || ctx.dataset.label === '最低')) return null;
                     return `${label}: ${ctx.parsed.y} ${unit}`;
                   },
                 },
@@ -155,8 +218,20 @@ const ChartModal = ({ metric, records, user, onClose }) => {
           }} />
         </div>
         <div style={{ marginTop:8,textAlign:'center',fontFamily:'var(--font-body)',fontSize:'0.7rem',opacity:0.4 }}>
-          共 {sorted.length} 筆記錄
-          {whoDatasets.length>0 && ' · ━ P50 · - - P15/P85/P3/P97 · WHO 女嬰'}
+          {isFeeding && feedingDaily ? (
+            <>
+              共 {sorted.length} 筆 · {feedingDaily.length} 天
+              {' · 日均 '}
+              {(sorted.reduce((s, r) => s + (Number(r.value)||0), 0) / feedingDaily.length).toFixed(0)} ml/天
+              {' · 單次 '}
+              {Math.min(...sorted.map(r => Number(r.value)||0))}~{Math.max(...sorted.map(r => Number(r.value)||0))} ml
+            </>
+          ) : (
+            <>
+              共 {sorted.length} 筆記錄
+              {whoDatasets.length>0 && ' · ━ P50 · - - P15/P85/P3/P97 · WHO 女嬰'}
+            </>
+          )}
         </div>
       </div>
     </div>
