@@ -95,28 +95,79 @@ const Dashboard = ({ onNavigate }) => {
   // 奶量評估（含預估投影）
   const feedingAssessment = useMemo(() => {
     if (!latestWeight || todayFeedingStats.total === 0) return null;
-    const mlPerKg = todayFeedingStats.total / latestWeight.value;
-
-    // 根據記錄次數推估全天總量（4 小時一次 ≈ 6 次/天）
-    const FEEDS_PER_DAY = 6;
-    const avgPerFeed = todayFeedingStats.count > 0 ? todayFeedingStats.total / todayFeedingStats.count : 0;
-    const projectedTotal = todayFeedingStats.count < 3 ? avgPerFeed * FEEDS_PER_DAY : todayFeedingStats.total;
-    const projectedMlPerKg = projectedTotal / latestWeight.value;
 
     const isPremature = user?.dueDate && new Date(user.dueDate) > new Date(user.birthDate);
-    const minTarget = isPremature ? 150 : 120;
-    const maxTarget = isPremature ? 180 : 150;
 
-    const status = projectedMlPerKg >= maxTarget ? 'good' : projectedMlPerKg >= minTarget ? 'ok' : 'low';
+    // 矯正月齡（天）
+    const correctedDays = correctedAgeInfo?.correctedDays ?? 0;
+    const correctedMonths = correctedDays / 30.44;
+
+    // ── 依月齡設定目標範圍（ml/kg/天）──
+    // 參考：台灣新生兒科醫學會 + WHO 哺育指引
+    // 早產兒出院後前幾週需要更高熱量密度
+    let minTarget, maxTarget, tooHighTarget;
+    if (isPremature && correctedMonths < 0) {
+      // 矯正未足月（仍在 NICU 等級護理）
+      minTarget = 150; maxTarget = 180; tooHighTarget = 200;
+    } else if (correctedMonths < 1) {
+      // 0–1 個月：新生兒期，胃容量小，少量多餐
+      minTarget = 150; maxTarget = 180; tooHighTarget = 200;
+    } else if (correctedMonths < 3) {
+      // 1–3 個月：攝取量逐漸增加
+      minTarget = 150; maxTarget = 180; tooHighTarget = 210;
+    } else if (correctedMonths < 6) {
+      // 3–6 個月：趨於穩定
+      minTarget = 120; maxTarget = 160; tooHighTarget = 200;
+    } else {
+      // 6 個月以上：開始副食品，奶量需求下降
+      minTarget = 100; maxTarget = 150; tooHighTarget = 180;
+    }
+
+    // ── 推估全天總量 ──
+    // 根據矯正月齡估算每天餵奶次數（而非固定 6 次）
+    const estimatedFeedsPerDay =
+      correctedMonths < 1 ? 8 :   // 新生兒：8–12 次，取中間值 8
+      correctedMonths < 3 ? 7 :   // 1–3 個月：7–8 次
+      correctedMonths < 6 ? 6 :   // 3–6 個月：6 次
+      5;                           // 6 個月以上：5 次
+
+    const avgPerFeed = todayFeedingStats.count > 0
+      ? todayFeedingStats.total / todayFeedingStats.count
+      : 0;
+
+    // 記錄次數 < 一半預估次數時才投影，否則用實際值
+    const shouldProject = todayFeedingStats.count < Math.ceil(estimatedFeedsPerDay / 2);
+    const projectedTotal = shouldProject
+      ? avgPerFeed * estimatedFeedsPerDay
+      : todayFeedingStats.total;
+
+    const mlPerKg = todayFeedingStats.total / latestWeight.value;
+    const projectedMlPerKg = projectedTotal / latestWeight.value;
+
+    // ── 狀態判斷（5 個等級）──
+    let status;
+    if (projectedMlPerKg >= tooHighTarget) {
+      status = 'high';      // 偏多（超過上限）
+    } else if (projectedMlPerKg >= maxTarget) {
+      status = 'good';      // 達標（在目標範圍內）
+    } else if (projectedMlPerKg >= minTarget) {
+      status = 'ok';        // 尚可（在最低標準以上）
+    } else if (projectedMlPerKg >= minTarget * 0.8) {
+      status = 'low';       // 偏低（低於最低標準 20% 以內）
+    } else {
+      status = 'veryLow';   // 明顯不足
+    }
 
     return {
       mlPerKg: Math.round(mlPerKg),
       projectedMlPerKg: Math.round(projectedMlPerKg),
       projectedTotal: Math.round(projectedTotal),
-      isProjected: todayFeedingStats.count < 3,
-      minTarget, maxTarget, status,
+      isProjected: shouldProject,
+      minTarget, maxTarget, tooHighTarget,
+      estimatedFeedsPerDay,
+      status,
     };
-  }, [latestWeight, todayFeedingStats, user?.dueDate, user?.birthDate, tick]);
+  }, [latestWeight, todayFeedingStats, correctedAgeInfo, user?.dueDate, user?.birthDate, tick]);
 
   const chartData = useMemo(() => {
     if (weightRecords.length < 2) return null;
@@ -341,19 +392,27 @@ const Dashboard = ({ onNavigate }) => {
               <div style={{
                 marginTop: 6, padding: '4px 8px',
                 borderRadius: 'var(--wobbly-sm)',
-                background: feedingAssessment.status === 'good' ? '#e8f5e9' :
-                            feedingAssessment.status === 'ok' ? '#fff8e1' : '#ffebee',
+                background:
+                  feedingAssessment.status === 'good' ? '#e8f5e9' :
+                  feedingAssessment.status === 'ok'   ? '#fff8e1' :
+                  feedingAssessment.status === 'high' ? '#fff3e0' :
+                  '#ffebee',
                 fontFamily: 'var(--font-body)', fontSize: '0.65rem',
-                color: feedingAssessment.status === 'good' ? '#2d7d46' :
-                       feedingAssessment.status === 'ok' ? '#e67e22' : '#c62828',
+                color:
+                  feedingAssessment.status === 'good' ? '#2d7d46' :
+                  feedingAssessment.status === 'ok'   ? '#e67e22' :
+                  feedingAssessment.status === 'high' ? '#e65100' :
+                  '#c62828',
               }}>
                 {feedingAssessment.isProjected
-                  ? `預估 ${feedingAssessment.projectedTotal}ml/天 · ${feedingAssessment.projectedMlPerKg} ml/kg`
+                  ? `預估 ${feedingAssessment.projectedTotal}ml · ${feedingAssessment.projectedMlPerKg} ml/kg`
                   : `${feedingAssessment.mlPerKg} ml/kg/天`}
                 <br/>
-                {feedingAssessment.status === 'good' ? '✅ 達標' :
-                 feedingAssessment.status === 'ok' ? '尚可' :
-                 `⚠️ 建議 ${feedingAssessment.minTarget}-${feedingAssessment.maxTarget} ml/kg`}
+                {feedingAssessment.status === 'good'   ? '✅ 達標' :
+                 feedingAssessment.status === 'ok'     ? '尚可' :
+                 feedingAssessment.status === 'high'   ? `⚠️ 偏多 (>${feedingAssessment.tooHighTarget})` :
+                 feedingAssessment.status === 'low'    ? `偏低 (${feedingAssessment.minTarget}-${feedingAssessment.maxTarget})` :
+                 `⚠️ 不足 (<${feedingAssessment.minTarget})`}
               </div>
             )}
           </button>
