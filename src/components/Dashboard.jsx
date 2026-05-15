@@ -143,16 +143,18 @@ const Dashboard = ({ onNavigate }) => {
     };
   }, [weightRecords]);
 
+  const isDark = document.documentElement.dataset.theme === 'dark';
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: '#fff',
-        titleColor: '#2d2d2d',
-        bodyColor: '#2d2d2d',
-        borderColor: '#2d2d2d',
+        backgroundColor: isDark ? '#252540' : '#fff',
+        titleColor: isDark ? '#eaeaea' : '#2d2d2d',
+        bodyColor: isDark ? '#eaeaea' : '#2d2d2d',
+        borderColor: isDark ? '#eaeaea' : '#2d2d2d',
         borderWidth: 2,
         cornerRadius: 0,
         padding: 12,
@@ -163,7 +165,7 @@ const Dashboard = ({ onNavigate }) => {
     },
     scales: {
       x: { grid: { display: false }, ticks: { color: '#999', font: { family: 'Patrick Hand', size: 11 } } },
-      y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { color: '#999', font: { family: 'Inter', size: 11 }, callback: v => v + ' kg' } },
+      y: { grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }, ticks: { color: '#999', font: { family: 'Inter', size: 11 }, callback: v => v + ' kg' } },
     },
   };
 
@@ -185,7 +187,7 @@ const Dashboard = ({ onNavigate }) => {
           <button
             onClick={() => onNavigate?.('settings')}
             style={{
-              background: '#fff',
+              background: 'var(--card-bg)',
               border: '2px solid var(--fg)',
               borderRadius: 'var(--wobbly-sm)',
               padding: '8px 10px',

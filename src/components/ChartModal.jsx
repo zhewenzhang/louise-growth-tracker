@@ -23,6 +23,10 @@ const calcCorrectedWeek = (birthDate, dueDate, recordDate) => {
 const ChartModal = ({ metric, records, user, onClose }) => {
   if (!records || records.length < 2) return null;
 
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const tooltipBg = isDark ? '#252540' : '#fff';
+  const tooltipFg = isDark ? '#eaeaea' : '#2d2d2d';
+
   const color = BABY_COLORS[metric] || '#2d2d2d';
   const label = LABELS[metric] || metric;
   const unit = UNITS[metric] || '';
@@ -161,9 +165,9 @@ const ChartModal = ({ metric, records, user, onClose }) => {
   };
 
   return (
-    <div style={{ position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.35)',display:'flex',alignItems:'center',justifyContent:'center',padding:'10px' }}
+    <div style={{ position:'fixed',inset:0,zIndex:100,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',padding:'10px' }}
       onClick={onClose}>
-      <div className="card fade-in" style={{ width:'100%',maxWidth:'440px',maxHeight:'88vh',overflow:'auto',background:'#fff',padding:'18px 14px 12px' }}
+      <div className="card fade-in" style={{ width:'100%',maxWidth:'440px',maxHeight:'88vh',overflow:'auto',background:'var(--card-bg)',padding:'18px 14px 12px' }}
         onClick={e=>e.stopPropagation()}>
         <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8 }}>
           <h3 style={{ fontFamily:'var(--font-display)',fontSize:'1.25rem' }}>
@@ -177,8 +181,11 @@ const ChartModal = ({ metric, records, user, onClose }) => {
             plugins:{
               legend:{display:false},
               tooltip:{
-                backgroundColor:'#fff',titleColor:'#2d2d2d',bodyColor:'#2d2d2d',
-                borderColor:'#2d2d2d',borderWidth:2,cornerRadius:0,padding:10,
+                backgroundColor: tooltipBg,
+                titleColor: tooltipFg,
+                bodyColor: tooltipFg,
+                borderColor: tooltipFg,
+                borderWidth:2,cornerRadius:0,padding:10,
                 displayColors:false,
                 titleFont:{family:'Patrick Hand',size:13},
                 bodyFont:{family:'Inter',size:13,weight:'600'},

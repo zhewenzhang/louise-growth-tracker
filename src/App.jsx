@@ -46,9 +46,9 @@ const AppContent = () => {
       {/* Bottom navigation — hand-drawn style */}
       <nav style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40,
-        background: '#fff',
+        background: 'var(--card-bg)',
         borderTop: '3px solid var(--fg)',
-        boxShadow: '0 -4px 0px 0px #2d2d2d',
+        boxShadow: '0 -4px 0px 0px var(--fg)',
         borderRadius: '255px 25px 225px 25px / 25px 225px 25px 255px',
       }}>
         <div className="flex items-center justify-around" style={{ height: '72px', padding: '0 8px' }}>
