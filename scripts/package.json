@@ -1,0 +1,9 @@
+{
+  "name": "louise-backup-scripts",
+  "version": "1.0.0",
+  "description": "Firebase backup scripts for Louise Growth Tracker",
+  "private": true,
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

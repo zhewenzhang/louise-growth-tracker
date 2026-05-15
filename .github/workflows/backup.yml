@@ -1,0 +1,64 @@
+name: 🔥 Firestore 自動備份
+
+on:
+  # 每天台灣時間凌晨 2:00 執行（UTC 18:00）
+  schedule:
+    - cron: '0 18 * * *'
+  # 也可以手動觸發
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: '手動備份原因（選填）'
+        required: false
+        default: '手動觸發'
+
+jobs:
+  backup:
+    name: 備份 Firestore 數據
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout 代碼
+        uses: actions/checkout@v4
+        with:
+          # 需要 push 權限
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🟢 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📦 安裝 Firebase Admin SDK
+        run: npm install firebase-admin
+        working-directory: scripts
+
+      - name: 🔥 執行備份
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node scripts/backup-firestore.js
+
+      - name: 📊 顯示備份結果
+        run: |
+          echo "=== 備份檔案列表 ==="
+          ls -lh backups/ 2>/dev/null || echo "backups 目錄不存在"
+          echo ""
+          echo "=== 最新備份摘要 ==="
+          if [ -f backups/index.json ]; then
+            cat backups/index.json | head -20
+          fi
+
+      - name: 💾 Commit 並推送備份
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "GitHub Actions Bot"
+          git add backups/
+          # 只有有變更才 commit
+          if git diff --staged --quiet; then
+            echo "✅ 今日備份已存在，無需重複 commit"
+          else
+            DATE=$(date -u +"%Y-%m-%d")
+            git commit -m "backup: 自動備份 ${DATE}"
+            git push
+            echo "✅ 備份已推送到 GitHub"
+          fi
