@@ -21,8 +21,8 @@ jobs:
       - name: 📥 Checkout 代碼
         uses: actions/checkout@v4
         with:
-          # 需要 push 權限
           token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
       - name: 🟢 設定 Node.js
         uses: actions/setup-node@v4
