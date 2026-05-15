@@ -333,6 +333,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/fireba
 import {
   getFirestore, collection, getDocs, doc, deleteDoc, setDoc, writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import {
+  getAuth, signInAnonymously, onAuthStateChanged
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDRCQgUnwfSJAAk577TmZGg82pB_l3fe1w",
@@ -344,7 +347,28 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db  = getFirestore(app);
+const auth = getAuth(app);
+
+// 匿名登入 — 與主 App 共用同一個 Firebase project，
+// Firestore Rules 允許 request.auth != null 的請求
+async function ensureAuth() {
+  return new Promise((resolve) => {
+    if (auth.currentUser) { resolve(auth.currentUser); return; }
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (user) { unsub(); resolve(user); return; }
+      try {
+        const cred = await signInAnonymously(auth);
+        unsub();
+        resolve(cred.user);
+      } catch (e) {
+        unsub();
+        console.warn('匿名登入失敗:', e.message);
+        resolve(null);
+      }
+    });
+  });
+}
 
 // ══════════════════════════════════════════════
 //  Constants
@@ -396,7 +420,7 @@ function startSession() {
   localStorage.setItem(SESSION_KEY, Date.now().toString());
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('admin-screen').style.display = 'block';
-  refreshAll();
+  ensureAuth().then(() => refreshAll());
 }
 
 function checkSession() {
@@ -431,6 +455,10 @@ async function loadAllData() {
   let total = 0;
 
   try {
+    // 先確保匿名登入完成，否則 Firestore Rules 會拒絕
+    const user = await ensureAuth();
+    if (!user) throw new Error('無法完成身份驗證，請確認 Firebase Auth 已啟用匿名登入');
+
     for (const col of COLLECTIONS) {
       const snap = await getDocs(collection(db, col.id));
       allData[col.id] = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
@@ -839,7 +867,8 @@ function showToast(msg, type = '') {
 if (checkSession()) {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('admin-screen').style.display = 'block';
-  refreshAll();
+  // 預先觸發匿名登入，讓 auth token 準備好
+  ensureAuth().then(() => refreshAll());
 }
 
 </script>
