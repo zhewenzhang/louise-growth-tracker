@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import { genId } from '../../utils/id';
+import { BADGES, calcBadgeStatus, CATEGORY_LABELS } from '../../data/badges';
 
 const EMOJI_LIST = [
   '😊', '🎉', '👶', '🍼', '👣', '🦷', '🚶', '🗣️', '🎨', '🎵',
@@ -9,8 +10,15 @@ const EMOJI_LIST = [
 ];
 
 const Memories = () => {
-  const { milestones, diaryEntries, addMilestone, deleteMilestone, addDiaryEntry, deleteDiaryEntry } = useApp();
+  const { user, milestones, diaryEntries, growthRecords, vaccineRecords, medications, doctorVisits, addMilestone, deleteMilestone, addDiaryEntry, deleteDiaryEntry } = useApp();
   const [activeTab, setActiveTab] = useState('milestones');
+
+  // 計算徽章狀態
+  const badges = useMemo(() => calcBadgeStatus({
+    user, milestones, diaryEntries, growthRecords, vaccineRecords, medications, doctorVisits,
+  }), [user, milestones, diaryEntries, growthRecords, vaccineRecords, medications, doctorVisits]);
+
+  const unlockedCount = badges.filter(b => b.unlocked).length;
 
   // 里程碑表單
   const [milestoneForm, setMilestoneForm] = useState({ title: '', date: new Date().toISOString().split('T')[0], emoji: '🎉', note: '' });
@@ -52,12 +60,15 @@ const Memories = () => {
       <h2 className="section-title">🌟 回憶</h2>
 
       {/* Tab 切換 */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <button onClick={() => setActiveTab('milestones')} className={`btn ${activeTab === 'milestones' ? 'btn-blue' : ''}`}>
           🎉 里程碑
         </button>
         <button onClick={() => setActiveTab('diary')} className={`btn ${activeTab === 'diary' ? 'btn-blue' : ''}`}>
           📝 日記
+        </button>
+        <button onClick={() => setActiveTab('badges')} className={`btn ${activeTab === 'badges' ? 'btn-blue' : ''}`}>
+          🏆 徽章 ({unlockedCount}/{badges.length})
         </button>
       </div>
 
@@ -213,6 +224,62 @@ const Memories = () => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ====== 徽章 Tab ====== */}
+      {activeTab === 'badges' && (
+        <div className="space-y-5">
+          {/* 進度卡片 */}
+          <div className="card" style={{ textAlign: 'center', padding: '20px 16px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: 4 }}>🏆</div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem' }}>
+              成就進度
+            </h3>
+            <p style={{ fontFamily: 'var(--font-number)', fontSize: '2rem', fontWeight: 600, color: 'var(--accent)', marginTop: 4 }}>
+              {unlockedCount} <span style={{ fontSize: '1rem', opacity: 0.6 }}>/ {badges.length}</span>
+            </p>
+            <div style={{ background: 'var(--muted)', borderRadius: '20px', height: '12px', overflow: 'hidden', marginTop: 8, border: '2px solid var(--fg)' }}>
+              <div style={{
+                background: 'linear-gradient(90deg, var(--accent), #ff8c66)',
+                height: '100%',
+                width: `${(unlockedCount / badges.length) * 100}%`,
+                transition: 'width 0.5s ease',
+              }} />
+            </div>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.6, marginTop: 6 }}>
+              {unlockedCount === 0 ? '還沒有徽章，繼續加油！' :
+               unlockedCount === badges.length ? '🎊 所有徽章都收集到了！' :
+               `已解鎖 ${Math.round(unlockedCount / badges.length * 100)}%`}
+            </p>
+          </div>
+
+          {/* 分類顯示徽章 */}
+          {Object.keys(CATEGORY_LABELS).map(category => {
+            const categoryBadges = badges.filter(b => b.category === category);
+            if (categoryBadges.length === 0) return null;
+            const categoryUnlocked = categoryBadges.filter(b => b.unlocked).length;
+
+            return (
+              <div key={category}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{CATEGORY_LABELS[category]}</span>
+                  <span style={{ fontSize: '0.85rem', opacity: 0.5, fontWeight: 400 }}>
+                    {categoryUnlocked}/{categoryBadges.length}
+                  </span>
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  {categoryBadges.map(b => (
+                    <div key={b.id} className={`badge-card ${b.unlocked ? 'unlocked' : 'locked'}`}>
+                      <div className="badge-emoji">{b.emoji}</div>
+                      <div className="badge-title">{b.title}</div>
+                      <div className="badge-desc">{b.description}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

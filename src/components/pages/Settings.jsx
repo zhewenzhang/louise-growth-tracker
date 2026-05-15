@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import { getCurrentUid } from '../../lib/firebase';
 import { hasPinSet, removePin } from '../../utils/pinLock';
+import { getTheme, setTheme } from '../../utils/theme';
 import PinSetup from '../PinSetup';
 
 const Settings = () => {
@@ -20,6 +21,13 @@ const Settings = () => {
   const [pinSetupMode, setPinSetupMode] = useState('setup');
   const [pinExists, setPinExists] = useState(hasPinSet());
   const [pinStatus, setPinStatus] = useState('');
+  const [theme, setThemeState] = useState(getTheme());
+
+  const handleToggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    setThemeState(newTheme);
+  };
 
   useEffect(() => {
     getCurrentUid().then(id => setUid(id || '未登入'));
@@ -143,6 +151,24 @@ service cloud.firestore {
             )}
           </div>
         </form>
+
+        {/* 外觀主題 */}
+        <div className="card">
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 12 }}>
+            🎨 外觀主題
+          </h3>
+          <div className="space-y-3">
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7 }}>
+              當前模式：<strong>{theme === 'dark' ? '🌙 深色模式' : '☀️ 淺色模式'}</strong>
+            </p>
+            <button onClick={handleToggleTheme} className="btn w-full">
+              {theme === 'dark' ? '☀️ 切換到淺色模式' : '🌙 切換到深色模式'}
+            </button>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5 }}>
+              深色模式適合夜間使用，保護眼睛 ✨
+            </p>
+          </div>
+        </div>
 
         {/* 資料備份 */}
         <div className="card">

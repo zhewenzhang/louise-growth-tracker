@@ -27,6 +27,12 @@ const allPages = [
 
 const AppContent = () => {
   const [currentPage, setCurrentPage] = useState('home');
+  const [pageParams, setPageParams] = useState({});
+
+  const handleNavigate = (pageId, params = {}) => {
+    setCurrentPage(pageId);
+    setPageParams(params);
+  };
 
   const ActivePage = allPages.find(p => p.id === currentPage)?.component || Dashboard;
 
@@ -34,7 +40,7 @@ const AppContent = () => {
     <div className="flex flex-col h-screen" style={{ background: 'var(--bg)' }}>
       {/* Page content — scrollable */}
       <div className="flex-1 overflow-y-auto" style={{ paddingBottom: '80px' }}>
-        <ActivePage onNavigate={setCurrentPage} />
+        <ActivePage onNavigate={handleNavigate} {...pageParams} />
       </div>
 
       {/* Bottom navigation — hand-drawn style */}
@@ -51,7 +57,7 @@ const AppContent = () => {
             return (
               <button
                 key={id}
-                onClick={() => setCurrentPage(id)}
+                onClick={() => { setCurrentPage(id); setPageParams({}); }}
                 className="relative flex flex-col items-center justify-center flex-1 h-full"
                 style={{
                   fontFamily: 'var(--font-body)',

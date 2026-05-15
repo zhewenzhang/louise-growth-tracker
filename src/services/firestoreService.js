@@ -172,6 +172,68 @@ export const deleteDiaryFromFirestore = async (id) => {
   try { await deleteDoc(doc(db, 'diary_entries', id)); } catch (e) { console.warn('Firestore delete diary:', e.message); }
 };
 
+// ── Medications ──
+export const saveMedicationToFirestore = async (record) => {
+  try {
+    await setDoc(doc(db, 'medications', record.id), {
+      userId: USER_ID,
+      date: record.date,
+      time: record.time || '',
+      name: record.name,
+      dose: record.dose || '',
+      frequency: record.frequency || '',
+      reason: record.reason || '',
+      note: record.note || '',
+      createdAt: new Date().toISOString(),
+    });
+  } catch (e) { console.warn('Firestore save medication:', e.message); }
+};
+
+export const loadMedicationsFromFirestore = async () => {
+  try {
+    const snap = await getDocs(collection(db, 'medications'));
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    data.sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00')));
+    return data;
+  } catch (e) { console.warn('Firestore load medication:', e.message); return null; }
+};
+
+export const deleteMedicationFromFirestore = async (id) => {
+  try { await deleteDoc(doc(db, 'medications', id)); } catch (e) { console.warn('Firestore delete medication:', e.message); }
+};
+
+// ── Doctor Visits ──
+export const saveDoctorVisitToFirestore = async (record) => {
+  try {
+    await setDoc(doc(db, 'doctor_visits', record.id), {
+      userId: USER_ID,
+      date: record.date,
+      time: record.time || '',
+      hospital: record.hospital || '',
+      doctor: record.doctor || '',
+      reason: record.reason || '',
+      diagnosis: record.diagnosis || '',
+      advice: record.advice || '',
+      followUpDate: record.followUpDate || '',
+      status: record.status || 'completed', // 'completed' | 'scheduled'
+      createdAt: new Date().toISOString(),
+    });
+  } catch (e) { console.warn('Firestore save doctor visit:', e.message); }
+};
+
+export const loadDoctorVisitsFromFirestore = async () => {
+  try {
+    const snap = await getDocs(collection(db, 'doctor_visits'));
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    data.sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00')));
+    return data;
+  } catch (e) { console.warn('Firestore load doctor visit:', e.message); return null; }
+};
+
+export const deleteDoctorVisitFromFirestore = async (id) => {
+  try { await deleteDoc(doc(db, 'doctor_visits', id)); } catch (e) { console.warn('Firestore delete doctor visit:', e.message); }
+};
+
 // ── Blood Pressure ──
 export const saveBloodPressureToFirestore = async (record) => {
   try {

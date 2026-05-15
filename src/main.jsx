@@ -2,6 +2,10 @@
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles/globals.css';
+import { initTheme } from './utils/theme';
+
+// 初始化主題（在 React 渲染前，避免閃爍）
+initTheme();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -10,6 +10,8 @@ import {
   saveMilestoneToFirestore, loadMilestonesFromFirestore, deleteMilestoneFromFirestore,
   saveDiaryToFirestore, loadDiaryFromFirestore, deleteDiaryFromFirestore,
   saveBloodPressureToFirestore, loadBloodPressureFromFirestore, deleteBloodPressureFromFirestore,
+  saveMedicationToFirestore, loadMedicationsFromFirestore, deleteMedicationFromFirestore,
+  saveDoctorVisitToFirestore, loadDoctorVisitsFromFirestore, deleteDoctorVisitFromFirestore,
 } from '../services/firestoreService';
 
 const AppContext = createContext();
@@ -23,6 +25,8 @@ export const AppProvider = ({ children }) => {
   const [milestones, setMilestones] = useLocalStorage('louise_milestones', []);
   const [diaryEntries, setDiaryEntries] = useLocalStorage('louise_diary', []);
   const [bpRecords, setBpRecords] = useLocalStorage('louise_blood_pressure', []);
+  const [medications, setMedications] = useLocalStorage('louise_medications', []);
+  const [doctorVisits, setDoctorVisits] = useLocalStorage('louise_doctor_visits', []);
   const [loaded, setLoaded] = useState(false);
   const [firestoreStatus, setFirestoreStatus] = useState('connecting'); // 'connecting' | 'connected' | 'empty' | 'error'
 
@@ -133,6 +137,32 @@ export const AppProvider = ({ children }) => {
           }
         }
 
+        // Medications — Firestore 優先
+        const remoteMed = await loadMedicationsFromFirestore();
+        if (remoteMed && remoteMed.length > 0) {
+          setMedications(remoteMed);
+          localStorage.setItem('louise_medications', JSON.stringify(remoteMed));
+          anySuccess = true;
+        } else {
+          const lsMed = JSON.parse(localStorage.getItem('louise_medications') || '[]');
+          if (lsMed.length > 0) {
+            for (const r of lsMed) await saveMedicationToFirestore(r);
+          }
+        }
+
+        // Doctor Visits — Firestore 優先
+        const remoteVisits = await loadDoctorVisitsFromFirestore();
+        if (remoteVisits && remoteVisits.length > 0) {
+          setDoctorVisits(remoteVisits);
+          localStorage.setItem('louise_doctor_visits', JSON.stringify(remoteVisits));
+          anySuccess = true;
+        } else {
+          const lsVisits = JSON.parse(localStorage.getItem('louise_doctor_visits') || '[]');
+          if (lsVisits.length > 0) {
+            for (const r of lsVisits) await saveDoctorVisitToFirestore(r);
+          }
+        }
+
         setFirestoreStatus(anySuccess ? 'connected' : 'connected');
       } catch (e) {
         console.error('Firestore 初始化錯誤:', e.code, e.message, e);
@@ -229,9 +259,39 @@ export const AppProvider = ({ children }) => {
     deleteBloodPressureFromFirestore(id);
   };
 
+  // Medications
+  const addMedication = (r) => {
+    const record = { ...r, id: r.id || genId() };
+    setMedications(prev => [record, ...prev]);
+    saveMedicationToFirestore(record);
+  };
+  const deleteMedication = (id) => {
+    setMedications(prev => prev.filter(r => r.id !== id));
+    deleteMedicationFromFirestore(id);
+  };
+
+  // Doctor Visits
+  const addDoctorVisit = (r) => {
+    const record = { ...r, id: r.id || genId() };
+    setDoctorVisits(prev => [record, ...prev]);
+    saveDoctorVisitToFirestore(record);
+  };
+  const updateDoctorVisit = (id, updates) => {
+    setDoctorVisits(prev => {
+      const updated = prev.map(v => v.id === id ? { ...v, ...updates } : v);
+      const target = updated.find(v => v.id === id);
+      if (target) saveDoctorVisitToFirestore(target);
+      return updated;
+    });
+  };
+  const deleteDoctorVisit = (id) => {
+    setDoctorVisits(prev => prev.filter(r => r.id !== id));
+    deleteDoctorVisitFromFirestore(id);
+  };
+
   // Export / Import
   const exportData = () => {
-    const data = { user, growthRecords, vaccineRecords, milestones, diaryEntries, bpRecords, exportDate: new Date().toISOString() };
+    const data = { user, growthRecords, vaccineRecords, milestones, diaryEntries, bpRecords, medications, doctorVisits, exportDate: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
@@ -265,6 +325,14 @@ export const AppProvider = ({ children }) => {
     if (Array.isArray(data.bpRecords)) {
       setBpRecords(data.bpRecords);
       data.bpRecords.forEach(r => saveBloodPressureToFirestore(r));
+    }
+    if (Array.isArray(data.medications)) {
+      setMedications(data.medications);
+      data.medications.forEach(r => saveMedicationToFirestore(r));
+    }
+    if (Array.isArray(data.doctorVisits)) {
+      setDoctorVisits(data.doctorVisits);
+      data.doctorVisits.forEach(r => saveDoctorVisitToFirestore(r));
     }
     return true;
   };
@@ -307,6 +375,8 @@ export const AppProvider = ({ children }) => {
       milestones, addMilestone, deleteMilestone,
       diaryEntries, addDiaryEntry, deleteDiaryEntry,
       bpRecords, addBpRecord, deleteBpRecord,
+      medications, addMedication, deleteMedication,
+      doctorVisits, addDoctorVisit, updateDoctorVisit, deleteDoctorVisit,
       exportData, importData,
       firestoreStatus,
     }}>

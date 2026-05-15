@@ -7,8 +7,8 @@ import { Line } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
-const Health = () => {
-  const { vaccineRecords, toggleVaccine, addCustomVaccine, updateVaccineDate, bpRecords, addBpRecord, deleteBpRecord, user } = useApp();
+const Health = ({ initialTab } = {}) => {
+  const { vaccineRecords, toggleVaccine, addCustomVaccine, updateVaccineDate, bpRecords, addBpRecord, deleteBpRecord, medications, addMedication, deleteMedication, doctorVisits, addDoctorVisit, updateDoctorVisit, deleteDoctorVisit, user } = useApp();
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [editDate, setEditDate] = useState('');
@@ -18,7 +18,10 @@ const Health = () => {
   const [bpSystolic, setBpSystolic] = useState('');
   const [bpDiastolic, setBpDiastolic] = useState('');
   const [bpPulse, setBpPulse] = useState('');
-
+  // 用藥表單
+  const [medForm, setMedForm] = useState({ date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5), name: '', dose: '', frequency: '', reason: '', note: '' });
+  // 看診表單
+  const [visitForm, setVisitForm] = useState({ date: new Date().toISOString().split('T')[0], time: '', hospital: '', doctor: '', reason: '', diagnosis: '', advice: '', followUpDate: '', status: 'completed' });
   const ageMonths = useMemo(() => {
     if (!user?.birthDate) return 0;
     const now = new Date();
@@ -61,19 +64,25 @@ const Health = () => {
   // 分兩組顯示
   const incomplete = vaccineRecords.filter(v => !v.completed);
   const completed = vaccineRecords.filter(v => v.completed);
-  const [activeTab, setActiveTab] = useState('vaccine'); // 'vaccine' | 'bp'
+  const [activeTab, setActiveTab] = useState(initialTab || 'vaccine'); // 'vaccine' | 'bp' | 'medication' | 'visit'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* ====== 標題 + Tab 切換 ====== */}
       <div style={{ flexShrink: 0, background: 'var(--bg)', paddingBottom: '8px' }}>
         <h2 className="section-title" style={{ marginBottom: '8px' }}>💉 健康管理</h2>
-        <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
           <button onClick={() => setActiveTab('vaccine')} className={`btn-sm ${activeTab === 'vaccine' ? 'btn-blue' : ''}`}>
             💉 疫苗
           </button>
           <button onClick={() => setActiveTab('bp')} className={`btn-sm ${activeTab === 'bp' ? 'btn-blue' : ''}`}>
             ❤️ 血壓
+          </button>
+          <button onClick={() => setActiveTab('med')} className={`btn-sm ${activeTab === 'med' ? 'btn-blue' : ''}`}>
+            💊 用藥
+          </button>
+          <button onClick={() => setActiveTab('visit')} className={`btn-sm ${activeTab === 'visit' ? 'btn-blue' : ''}`}>
+            🏥 看診
           </button>
         </div>
       </div>
@@ -352,6 +361,195 @@ const Health = () => {
                         {r.date} {r.time}
                       </div>
                       <button onClick={() => deleteBpRecord(r.id)} className="btn-sm" style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>🗑️</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── 用藥 Tab ── */}
+        {activeTab === 'med' && (
+          <div className="space-y-4">
+            {/* 新增用藥表單 */}
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!medForm.name || !medForm.date) return;
+              addMedication({ id: genId(), ...medForm });
+              setMedForm({ date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5), name: '', dose: '', frequency: '', reason: '', note: '' });
+            }} className="card">
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: 8 }}>💊 新增用藥記錄</h3>
+              <div className="space-y-2">
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="date" value={medForm.date} onChange={e => setMedForm(p => ({ ...p, date: e.target.value }))} required style={{ flex: 1 }} />
+                  <input type="time" value={medForm.time} onChange={e => setMedForm(p => ({ ...p, time: e.target.value }))} style={{ flex: 1 }} />
+                </div>
+                <input type="text" value={medForm.name} onChange={e => setMedForm(p => ({ ...p, name: e.target.value }))} placeholder="藥品名稱（如：退燒藥）" required />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="text" value={medForm.dose} onChange={e => setMedForm(p => ({ ...p, dose: e.target.value }))} placeholder="劑量（如：1ml）" style={{ flex: 1 }} />
+                  <input type="text" value={medForm.frequency} onChange={e => setMedForm(p => ({ ...p, frequency: e.target.value }))} placeholder="頻率（如：每6小時）" style={{ flex: 1 }} />
+                </div>
+                <input type="text" value={medForm.reason} onChange={e => setMedForm(p => ({ ...p, reason: e.target.value }))} placeholder="用藥原因（如：發燒38.5°C）" />
+                <input type="text" value={medForm.note} onChange={e => setMedForm(p => ({ ...p, note: e.target.value }))} placeholder="備註（選填）" />
+                <button type="submit" className="btn w-full">✅ 新增記錄</button>
+              </div>
+            </form>
+
+            {/* 用藥歷史 */}
+            <div>
+              <h3 className="section-title">用藥歷史 ({medications.length} 筆)</h3>
+              {medications.length === 0 ? (
+                <div className="card text-center">
+                  <p className="text-4xl mb-2">💊</p>
+                  <p style={{ fontFamily: 'var(--font-body)', opacity: 0.6 }}>還沒有用藥記錄</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {[...medications].sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00'))).map(r => (
+                    <div key={r.id} className="card-sm animate-in" style={{ padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ flex: 1 }}>
+                          <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem' }}>💊 {r.name}</h4>
+                          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7 }}>
+                            {r.dose && `${r.dose}`}{r.frequency && ` · ${r.frequency}`}
+                          </p>
+                          {r.reason && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.5 }}>原因：{r.reason}</p>}
+                          {r.note && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.5 }}>備註：{r.note}</p>}
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5 }}>{r.date}</p>
+                          {r.time && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5 }}>{r.time}</p>}
+                          <button onClick={() => deleteMedication(r.id)} className="btn-sm" style={{ color: 'var(--accent)', fontSize: '0.7rem', marginTop: 4 }}>🗑️</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── 看診 Tab ── */}
+        {activeTab === 'visit' && (
+          <div className="space-y-4">
+            {/* 即將回診提醒 */}
+            {(() => {
+              const todayStr = new Date().toISOString().split('T')[0];
+              const upcoming = doctorVisits
+                .filter(v => v.status === 'scheduled' || (v.followUpDate && v.followUpDate >= todayStr))
+                .sort((a, b) => new Date(a.followUpDate || a.date) - new Date(b.followUpDate || b.date));
+              if (upcoming.length === 0) return null;
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {upcoming.slice(0, 3).map((v, i) => {
+                    const targetDate = v.status === 'scheduled' ? v.date : v.followUpDate;
+                    const daysUntil = Math.ceil((new Date(targetDate) - new Date(todayStr)) / (1000*60*60*24));
+                    return (
+                      <div key={v.id} className="sticky-note" style={{
+                        transform: `rotate(${(i % 3 - 1) * 1}deg)`,
+                        background: daysUntil <= 1 ? '#fee2e2' : daysUntil <= 3 ? '#fff3cd' : 'var(--yellow)',
+                        fontSize: '0.9rem',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <strong style={{ fontFamily: 'var(--font-display)' }}>
+                              {daysUntil <= 0 ? '🚨 今天回診' : daysUntil === 1 ? '⚠️ 明天回診' : `📅 ${daysUntil} 天後回診`}
+                            </strong>
+                            {' '}{v.hospital || '醫院'}{v.doctor && ` · ${v.doctor}`}
+                          </div>
+                          <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.7 }}>
+                            {targetDate}
+                          </span>
+                        </div>
+                        {v.reason && <p style={{ fontSize: '0.8rem', opacity: 0.6, marginTop: 4 }}>{v.reason}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* 新增看診表單 */}
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!visitForm.date) return;
+              addDoctorVisit({ id: genId(), ...visitForm });
+              setVisitForm({ date: new Date().toISOString().split('T')[0], time: '', hospital: '', doctor: '', reason: '', diagnosis: '', advice: '', followUpDate: '', status: 'completed' });
+            }} className="card">
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: 8 }}>🏥 新增看診記錄</h3>
+              <div className="space-y-2">
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select value={visitForm.status} onChange={e => setVisitForm(p => ({ ...p, status: e.target.value }))} style={{ flex: 1 }}>
+                    <option value="completed">✅ 已看診</option>
+                    <option value="scheduled">📅 預約中</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="date" value={visitForm.date} onChange={e => setVisitForm(p => ({ ...p, date: e.target.value }))} required style={{ flex: 1 }} />
+                  <input type="time" value={visitForm.time} onChange={e => setVisitForm(p => ({ ...p, time: e.target.value }))} style={{ flex: 1 }} />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="text" value={visitForm.hospital} onChange={e => setVisitForm(p => ({ ...p, hospital: e.target.value }))} placeholder="醫院/診所" style={{ flex: 1 }} />
+                  <input type="text" value={visitForm.doctor} onChange={e => setVisitForm(p => ({ ...p, doctor: e.target.value }))} placeholder="醫師" style={{ flex: 1 }} />
+                </div>
+                <input type="text" value={visitForm.reason} onChange={e => setVisitForm(p => ({ ...p, reason: e.target.value }))} placeholder="就診原因" />
+                {visitForm.status === 'completed' && (
+                  <>
+                    <input type="text" value={visitForm.diagnosis} onChange={e => setVisitForm(p => ({ ...p, diagnosis: e.target.value }))} placeholder="診斷結果" />
+                    <textarea value={visitForm.advice} onChange={e => setVisitForm(p => ({ ...p, advice: e.target.value }))} placeholder="醫生囑咐 / 注意事項" rows="3" style={{ resize: 'none' }} />
+                    <div>
+                      <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: '0.85rem' }}>下次回診日期（選填）</label>
+                      <input type="date" value={visitForm.followUpDate} onChange={e => setVisitForm(p => ({ ...p, followUpDate: e.target.value }))} />
+                    </div>
+                  </>
+                )}
+                <button type="submit" className="btn w-full">✅ {visitForm.status === 'scheduled' ? '新增預約' : '新增記錄'}</button>
+              </div>
+            </form>
+
+            {/* 看診歷史 */}
+            <div>
+              <h3 className="section-title">看診記錄 ({doctorVisits.length} 筆)</h3>
+              {doctorVisits.length === 0 ? (
+                <div className="card text-center">
+                  <p className="text-4xl mb-2">🏥</p>
+                  <p style={{ fontFamily: 'var(--font-body)', opacity: 0.6 }}>還沒有看診記錄</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {[...doctorVisits].sort((a, b) => new Date(b.date) - new Date(a.date)).map(r => (
+                    <div key={r.id} className="card animate-in" style={{ padding: '14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                        <div>
+                          <span style={{ fontFamily: 'var(--font-display)', fontSize: '1rem' }}>
+                            {r.status === 'scheduled' ? '📅' : '🏥'} {r.hospital || '看診'}
+                          </span>
+                          {r.doctor && <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.6 }}> · {r.doctor}</span>}
+                        </div>
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5 }}>{r.date}</span>
+                          <button onClick={() => deleteDoctorVisit(r.id)} className="btn-sm" style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>🗑️</button>
+                        </div>
+                      </div>
+                      {r.reason && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7 }}>原因：{r.reason}</p>}
+                      {r.diagnosis && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7 }}>診斷：{r.diagnosis}</p>}
+                      {r.advice && (
+                        <div style={{ marginTop: 6, padding: '8px 10px', background: 'var(--yellow)', borderRadius: 'var(--wobbly-sm)', border: '1px solid var(--fg)' }}>
+                          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem' }}>📋 醫囑：{r.advice}</p>
+                        </div>
+                      )}
+                      {r.followUpDate && (
+                        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.6, marginTop: 4 }}>
+                          📅 回診：{r.followUpDate}
+                        </p>
+                      )}
+                      {r.status === 'scheduled' && (
+                        <button onClick={() => updateDoctorVisit(r.id, { status: 'completed' })} className="btn-sm" style={{ marginTop: 6 }}>
+                          ✅ 標記已完成
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
