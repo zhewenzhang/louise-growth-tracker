@@ -28,6 +28,9 @@ const Health = ({ initialTab } = {}) => {
   // 看診編輯
   const [editVisitId, setEditVisitId] = useState(null);
   const [editVisitForm, setEditVisitForm] = useState({});
+  // 完診補充表單
+  const [completingId, setCompletingId] = useState(null);
+  const [completeForm, setCompleteForm] = useState({ diagnosis: '', advice: '', followUpDate: '' });
   const ageMonths = useMemo(() => {
     if (!user?.birthDate) return 0;
     const now = new Date();
@@ -642,9 +645,88 @@ const Health = ({ initialTab } = {}) => {
                             </p>
                           )}
                           {r.status === 'scheduled' && (
-                            <button onClick={() => updateDoctorVisit(r.id, { status: 'completed' })} className="btn-sm" style={{ marginTop: 6 }}>
-                              ✅ 標記已完成
-                            </button>
+                            <>
+                              {completingId === r.id ? (
+                                /* ── 完診補充表單 ── */
+                                <div style={{ marginTop: 10, padding: '12px', background: 'var(--bg)', borderRadius: 'var(--wobbly-sm)', border: '2px solid var(--fg)' }}>
+                                  <p style={{ fontFamily: 'var(--font-display)', fontSize: '0.95rem', marginBottom: 8 }}>
+                                    🏥 補充看診資訊（選填，可直接跳過）
+                                  </p>
+                                  <div className="space-y-2">
+                                    <input
+                                      type="text"
+                                      value={completeForm.diagnosis}
+                                      onChange={e => setCompleteForm(p => ({ ...p, diagnosis: e.target.value }))}
+                                      placeholder="診斷結果（選填）"
+                                    />
+                                    <textarea
+                                      value={completeForm.advice}
+                                      onChange={e => setCompleteForm(p => ({ ...p, advice: e.target.value }))}
+                                      placeholder="醫生囑咐 / 注意事項（選填）"
+                                      rows="2"
+                                      style={{ resize: 'none' }}
+                                    />
+                                    <div>
+                                      <label style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.7, display: 'block', marginBottom: 4 }}>
+                                        📅 下次回診日期（選填）
+                                      </label>
+                                      <input
+                                        type="date"
+                                        value={completeForm.followUpDate}
+                                        onChange={e => setCompleteForm(p => ({ ...p, followUpDate: e.target.value }))}
+                                      />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                      <button
+                                        className="btn btn-sm"
+                                        style={{ flex: 1, background: 'var(--green)', color: '#fff', borderColor: 'var(--green)' }}
+                                        onClick={() => {
+                                          updateDoctorVisit(r.id, {
+                                            status: 'completed',
+                                            ...(completeForm.diagnosis && { diagnosis: completeForm.diagnosis }),
+                                            ...(completeForm.advice && { advice: completeForm.advice }),
+                                            ...(completeForm.followUpDate && { followUpDate: completeForm.followUpDate }),
+                                          });
+                                          setCompletingId(null);
+                                          setCompleteForm({ diagnosis: '', advice: '', followUpDate: '' });
+                                        }}
+                                      >
+                                        ✅ 確認完診
+                                      </button>
+                                      <button
+                                        className="btn btn-sm"
+                                        style={{ flex: 1 }}
+                                        onClick={() => {
+                                          updateDoctorVisit(r.id, { status: 'completed' });
+                                          setCompletingId(null);
+                                          setCompleteForm({ diagnosis: '', advice: '', followUpDate: '' });
+                                        }}
+                                      >
+                                        ⏭️ 跳過，直接完診
+                                      </button>
+                                      <button
+                                        className="btn-sm"
+                                        onClick={() => { setCompletingId(null); setCompleteForm({ diagnosis: '', advice: '', followUpDate: '' }); }}
+                                        style={{ flexShrink: 0 }}
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setCompletingId(r.id);
+                                    setCompleteForm({ diagnosis: r.diagnosis || '', advice: r.advice || '', followUpDate: r.followUpDate || '' });
+                                  }}
+                                  className="btn-sm"
+                                  style={{ marginTop: 8, background: 'var(--green)', color: '#fff', borderColor: 'var(--green)', width: '100%' }}
+                                >
+                                  ✅ 已看診，標記完成
+                                </button>
+                              )}
+                            </>
                           )}
                         </>
                       )}
