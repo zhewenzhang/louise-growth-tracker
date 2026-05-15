@@ -18,10 +18,10 @@ export const formatBabyAge = (birthDate, dueDate) => {
   }
   const correctedDays = chronologicalDays - prematurityDays;
 
-  // [helper] 天數轉月+日
+  // [helper] 天數轉月+日（用 30.44 = 365/12，比固定 30 天更精確）
   const toMonthsDays = (d) => {
-    const m = Math.floor(d / 30);
-    return { months: m, days: d - m * 30 };
+    const m = Math.floor(d / 30.44);
+    return { months: m, days: Math.round(d - m * 30.44) };
   };
 
   // ===== 一歲前 =====

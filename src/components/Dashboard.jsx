@@ -143,7 +143,16 @@ const Dashboard = ({ onNavigate }) => {
     };
   }, [weightRecords]);
 
-  const isDark = document.documentElement.dataset.theme === 'dark';
+  const [isDark, setIsDark] = useState(document.documentElement.dataset.theme === 'dark');
+
+  // 監聽主題切換（Settings 頁面切換深色模式時即時更新圖表顏色）
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.dataset.theme === 'dark');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
 
   const chartOptions = {
     responsive: true,

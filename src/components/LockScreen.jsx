@@ -28,7 +28,9 @@ const LockScreen = ({ onUnlock }) => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  });  useEffect(() => {
+  }, [pin]); // pin 改變時重新綁定，確保 handleInput/handleDelete 拿到最新 pin
+
+  useEffect(() => {
     if (pin.length !== PIN_LENGTH) return;
     (async () => {
       const ok = await verifyPin(pin);

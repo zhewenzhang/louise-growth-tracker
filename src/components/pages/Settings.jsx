@@ -43,9 +43,8 @@ const Settings = () => {
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {
-      allow read, write: if request.auth.uid in [
-        "${uid}"
-      ];
+      // 只允許已登入用戶（包含匿名登入）讀寫
+      allow read, write: if request.auth != null;
     }
   }
 }`;

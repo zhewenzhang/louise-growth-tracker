@@ -119,7 +119,7 @@ const Growth = () => {
               <div>
                 <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>🤱 母乳 (ml)</label>
                 <input
-                  type="number" step="1" min="0"
+                  type="number" step="1" min="0" max="500"
                   value={breastMilk} onChange={(e) => setBreastMilk(e.target.value)}
                   placeholder="例如：40"
                 />
@@ -127,7 +127,7 @@ const Growth = () => {
               <div>
                 <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>🍼 配方奶 (ml)</label>
                 <input
-                  type="number" step="1" min="0"
+                  type="number" step="1" min="0" max="500"
                   value={formulaMilk} onChange={(e) => setFormulaMilk(e.target.value)}
                   placeholder="例如：20"
                 />
