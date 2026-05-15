@@ -24,7 +24,7 @@ const Health = ({ initialTab } = {}) => {
   const [editMedId, setEditMedId] = useState(null);
   const [editMedForm, setEditMedForm] = useState({});
   // 看診表單
-  const [visitForm, setVisitForm] = useState({ date: new Date().toISOString().split('T')[0], time: '', hospital: '', location: '', department: '', visitNumber: '', doctor: '', reason: '', diagnosis: '', advice: '', followUpDate: '', status: 'completed' });
+  const [visitForm, setVisitForm] = useState({ date: new Date().toISOString().split('T')[0], time: '', hospital: '', location: '', department: '', visitNumber: '', doctor: '', reason: '', questions: '', diagnosis: '', advice: '', followUpDate: '', status: 'completed' });
   // 看診編輯
   const [editVisitId, setEditVisitId] = useState(null);
   const [editVisitForm, setEditVisitForm] = useState({});
@@ -522,7 +522,7 @@ const Health = ({ initialTab } = {}) => {
               e.preventDefault();
               if (!visitForm.date) return;
               addDoctorVisit({ id: genId(), ...visitForm });
-              setVisitForm({ date: new Date().toISOString().split('T')[0], time: '', hospital: '', location: '', department: '', visitNumber: '', doctor: '', reason: '', diagnosis: '', advice: '', followUpDate: '', status: 'completed' });
+              setVisitForm({ date: new Date().toISOString().split('T')[0], time: '', hospital: '', location: '', department: '', visitNumber: '', doctor: '', reason: '', questions: '', diagnosis: '', advice: '', followUpDate: '', status: 'completed' });
             }} className="card">
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: 8 }}>🏥 新增看診記錄</h3>
               <div className="space-y-2">
@@ -546,6 +546,15 @@ const Health = ({ initialTab } = {}) => {
                 </div>
                 <input type="text" value={visitForm.visitNumber} onChange={e => setVisitForm(p => ({ ...p, visitNumber: e.target.value }))} placeholder="就診號（如：A012）" />
                 <input type="text" value={visitForm.reason} onChange={e => setVisitForm(p => ({ ...p, reason: e.target.value }))} placeholder="就診原因" />
+                {visitForm.status === 'scheduled' && (
+                  <textarea
+                    value={visitForm.questions}
+                    onChange={e => setVisitForm(p => ({ ...p, questions: e.target.value }))}
+                    placeholder="想問醫生的問題 / 備注（選填）"
+                    rows="3"
+                    style={{ resize: 'none' }}
+                  />
+                )}
                 {visitForm.status === 'completed' && (
                   <>
                     <input type="text" value={visitForm.diagnosis} onChange={e => setVisitForm(p => ({ ...p, diagnosis: e.target.value }))} placeholder="診斷結果" />
@@ -597,6 +606,7 @@ const Health = ({ initialTab } = {}) => {
                           </div>
                           <input type="text" value={editVisitForm.visitNumber || ''} onChange={e => setEditVisitForm(p => ({ ...p, visitNumber: e.target.value }))} placeholder="就診號（如：A012）" />
                           <input type="text" value={editVisitForm.reason || ''} onChange={e => setEditVisitForm(p => ({ ...p, reason: e.target.value }))} placeholder="就診原因" />
+                          <textarea value={editVisitForm.questions || ''} onChange={e => setEditVisitForm(p => ({ ...p, questions: e.target.value }))} placeholder="想問醫生的問題 / 備注（選填）" rows="3" style={{ resize: 'none' }} />
                           <input type="text" value={editVisitForm.diagnosis || ''} onChange={e => setEditVisitForm(p => ({ ...p, diagnosis: e.target.value }))} placeholder="診斷結果" />
                           <textarea value={editVisitForm.advice || ''} onChange={e => setEditVisitForm(p => ({ ...p, advice: e.target.value }))} placeholder="醫生囑咐 / 注意事項" rows="3" style={{ resize: 'none' }} />
                           <div>
@@ -621,11 +631,18 @@ const Health = ({ initialTab } = {}) => {
                             </div>
                             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                               <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5 }}>{r.date}</span>
-                              <button onClick={() => { setEditVisitId(r.id); setEditVisitForm({ status: r.status, date: r.date, time: r.time, hospital: r.hospital, location: r.location, department: r.department, visitNumber: r.visitNumber, doctor: r.doctor, reason: r.reason, diagnosis: r.diagnosis, advice: r.advice, followUpDate: r.followUpDate }); }} className="btn-sm" style={{ fontSize: '0.7rem' }}>✏️</button>
+                              <button onClick={() => { setEditVisitId(r.id); setEditVisitForm({ status: r.status, date: r.date, time: r.time, hospital: r.hospital, location: r.location, department: r.department, visitNumber: r.visitNumber, doctor: r.doctor, reason: r.reason, questions: r.questions, diagnosis: r.diagnosis, advice: r.advice, followUpDate: r.followUpDate }); }} className="btn-sm" style={{ fontSize: '0.7rem' }}>✏️</button>
                               <button onClick={() => deleteDoctorVisit(r.id)} className="btn-sm" style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>🗑️</button>
                             </div>
                           </div>
                           {r.reason && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7 }}>原因：{r.reason}</p>}
+                          {r.status === 'scheduled' && r.questions && (
+                            <div style={{ marginTop: 6, padding: '8px 10px', background: '#e8f4fd', borderRadius: 'var(--wobbly-sm)', border: '1.5px solid #2d5da1' }}>
+                              <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', color: '#2d5da1' }}>
+                                ❓ 想問醫生：{r.questions}
+                              </p>
+                            </div>
+                          )}
                           {(r.location || r.department || r.visitNumber) && (
                             <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.6, marginTop: 2 }}>
                               {r.location && `📍 ${r.location}`}

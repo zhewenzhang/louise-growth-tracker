@@ -219,6 +219,7 @@ export const saveDoctorVisitToFirestore = async (record) => {
       visitNumber: record.visitNumber || '',
       doctor: record.doctor || '',
       reason: record.reason || '',
+      questions: record.questions || '',
       diagnosis: record.diagnosis || '',
       advice: record.advice || '',
       followUpDate: record.followUpDate || '',
