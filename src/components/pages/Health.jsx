@@ -630,7 +630,9 @@ const Health = ({ initialTab } = {}) => {
                               {r.doctor && <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.6 }}> · {r.doctor}</span>}
                             </div>
                             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                              <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5 }}>{r.date}</span>
+                              <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5 }}>
+                                {r.date}{r.time && ` ⏰ ${r.time}`}
+                              </span>
                               <button onClick={() => { setEditVisitId(r.id); setEditVisitForm({ status: r.status, date: r.date, time: r.time, hospital: r.hospital, location: r.location, department: r.department, visitNumber: r.visitNumber, doctor: r.doctor, reason: r.reason, questions: r.questions, diagnosis: r.diagnosis, advice: r.advice, followUpDate: r.followUpDate }); }} className="btn-sm" style={{ fontSize: '0.7rem' }}>✏️</button>
                               <button onClick={() => deleteDoctorVisit(r.id)} className="btn-sm" style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>🗑️</button>
                             </div>

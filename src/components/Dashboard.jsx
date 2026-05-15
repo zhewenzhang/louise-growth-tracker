@@ -443,11 +443,19 @@ const Dashboard = ({ onNavigate }) => {
         </div>
       )}
 
-      {/* Upcoming follow-up reminders */}
+      {/* ── 重要提醒區：下一針疫苗 + 即將回診 ── */}
       {(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const upcoming = (doctorVisits || [])
+        const todayStr = today.toISOString().split('T')[0];
+
+        // 下一針疫苗（最近一個未完成且有 dueDate 的）
+        const nextVaccine = [...(vaccineRecords || [])]
+          .filter(v => !v.completed && v.dueDate)
+          .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0] || null;
+
+        // 即將回診（最近 3 筆）
+        const upcomingVisits = (doctorVisits || [])
           .filter(v => {
             const targetDate = v.followUpDate || (v.status === 'scheduled' ? v.date : null);
             if (!targetDate) return false;
@@ -455,89 +463,125 @@ const Dashboard = ({ onNavigate }) => {
             d.setHours(0, 0, 0, 0);
             return d >= today;
           })
-          .sort((a, b) => {
-            const da = new Date(a.followUpDate || a.date);
-            const db = new Date(b.followUpDate || b.date);
-            return da - db;
-          })
+          .sort((a, b) => new Date(a.followUpDate || a.date) - new Date(b.followUpDate || b.date))
           .slice(0, 3);
 
-        if (upcoming.length === 0) return null;
+        if (!nextVaccine && upcomingVisits.length === 0) return null;
+
+        // 日期標籤 helper
+        const dayTag = (dateStr) => {
+          const d = new Date(dateStr);
+          d.setHours(0, 0, 0, 0);
+          const diff = Math.round((d - today) / (1000 * 60 * 60 * 24));
+          if (diff < 0) return { text: `${Math.abs(diff)} 天前`, color: '#999', bg: '#f5f5f5' };
+          if (diff === 0) return { text: '今天', color: '#ff4d4d', bg: '#ffebee' };
+          if (diff === 1) return { text: '明天', color: '#e67e22', bg: '#fff8e1' };
+          if (diff <= 7) return { text: `${diff} 天後`, color: '#e67e22', bg: '#fff8e1' };
+          return { text: `${diff} 天後`, color: '#2d7d46', bg: '#e8f5e9' };
+        };
 
         return (
-          <div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 10 }}>🏥 即將回診</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {upcoming.map(v => {
-                const targetDate = v.followUpDate || v.date;
-                const d = new Date(targetDate);
-                d.setHours(0, 0, 0, 0);
-                const diffDays = Math.round((d - today) / (1000 * 60 * 60 * 24));
-                const isToday = diffDays === 0;
-                const isSoon = diffDays <= 3;
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 2 }}>📌 重要提醒</h3>
 
-                const bgColor = isToday ? '#ffebee' : isSoon ? '#fff8e1' : 'var(--card-bg)';
-                const borderColor = isToday ? '#ff4d4d' : isSoon ? '#f0a500' : 'var(--fg)';
-                const tagColor = isToday ? '#ff4d4d' : isSoon ? '#e67e22' : '#2d7d46';
-                const tagBg = isToday ? '#ffebee' : isSoon ? '#fff8e1' : '#e8f5e9';
-                const tagText = isToday ? '今天' : diffDays === 1 ? '明天' : `${diffDays} 天後`;
-
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => onNavigate?.('health', { tab: 'visit' })}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      background: bgColor,
-                      border: `2px solid ${borderColor}`,
-                      borderRadius: 'var(--wobbly-sm)',
-                      boxShadow: 'var(--shadow-sm)',
-                      padding: '12px 14px',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      width: '100%',
-                    }}
-                  >
-                    <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>🏥</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--fg)' }}>
-                          {v.hospital || '回診'}
-                        </span>
-                        <span style={{
-                          fontFamily: 'var(--font-body)', fontSize: '0.7rem',
-                          background: tagBg, color: tagColor,
-                          border: `1.5px solid ${tagColor}`,
-                          borderRadius: 'var(--wobbly-sm)',
-                          padding: '1px 7px',
-                          fontWeight: 600,
-                        }}>
-                          {tagText}
-                        </span>
-                      </div>
-                      {(v.department || v.location || v.visitNumber) && (
-                        <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.75, marginTop: 2 }}>
-                          {v.department && `🏷️ ${v.department}`}
-                          {v.location && `　📍 ${v.location}`}
-                          {v.visitNumber && `　🔢 ${v.visitNumber}`}
-                        </div>
-                      )}
-                      {v.reason && (
-                        <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.65, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {v.reason}
-                        </div>
-                      )}
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5, marginTop: 2 }}>
-                        {new Date(targetDate).toLocaleDateString('zh-TW')}
-                        {v.doctor && ` · ${v.doctor}`}
-                        {v.department && ` · ${v.department}`}
-                      </div>
+            {/* 下一針疫苗 */}
+            {nextVaccine && (() => {
+              const tag = dayTag(nextVaccine.dueDate);
+              const isUrgent = new Date(nextVaccine.dueDate) <= today;
+              return (
+                <button
+                  onClick={() => onNavigate?.('health', { initialTab: 'vaccine' })}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    background: isUrgent ? '#ffebee' : 'var(--card-bg)',
+                    border: `2px solid ${isUrgent ? '#ff4d4d' : 'var(--fg)'}`,
+                    borderRadius: 'var(--wobbly-sm)',
+                    boxShadow: 'var(--shadow-sm)',
+                    padding: '12px 14px',
+                    cursor: 'pointer', textAlign: 'left', width: '100%',
+                  }}
+                >
+                  <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>💉</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--fg)' }}>
+                        {nextVaccine.name}
+                      </span>
+                      <span style={{
+                        fontFamily: 'var(--font-body)', fontSize: '0.7rem',
+                        background: tag.bg, color: tag.color,
+                        border: `1.5px solid ${tag.color}`,
+                        borderRadius: 'var(--wobbly-sm)', padding: '1px 7px', fontWeight: 600,
+                      }}>{tag.text}</span>
                     </div>
-                    <span style={{ fontSize: '1rem', opacity: 0.4, flexShrink: 0 }}>›</span>
-                  </button>
-                );
-              })}
-            </div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.7, marginTop: 2 }}>
+                      {nextVaccine.dose}
+                      {nextVaccine.recommendedAge && ` · ${nextVaccine.recommendedAge}`}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5, marginTop: 2 }}>
+                      📅 {new Date(nextVaccine.dueDate).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '1rem', opacity: 0.4, flexShrink: 0 }}>›</span>
+                </button>
+              );
+            })()}
+
+            {/* 即將回診 */}
+            {upcomingVisits.map(v => {
+              const targetDate = v.followUpDate || v.date;
+              const tag = dayTag(targetDate);
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => onNavigate?.('health', { initialTab: 'visit' })}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    background: tag.color === '#ff4d4d' ? '#ffebee' : 'var(--card-bg)',
+                    border: `2px solid ${tag.color === '#ff4d4d' ? '#ff4d4d' : tag.color === '#e67e22' ? '#f0a500' : 'var(--fg)'}`,
+                    borderRadius: 'var(--wobbly-sm)',
+                    boxShadow: 'var(--shadow-sm)',
+                    padding: '12px 14px',
+                    cursor: 'pointer', textAlign: 'left', width: '100%',
+                  }}
+                >
+                  <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>🏥</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--fg)' }}>
+                        {v.hospital || '回診'}
+                      </span>
+                      <span style={{
+                        fontFamily: 'var(--font-body)', fontSize: '0.7rem',
+                        background: tag.bg, color: tag.color,
+                        border: `1.5px solid ${tag.color}`,
+                        borderRadius: 'var(--wobbly-sm)', padding: '1px 7px', fontWeight: 600,
+                      }}>{tag.text}</span>
+                    </div>
+                    {/* 診別 + 地點 + 就診號 */}
+                    {(v.department || v.location || v.visitNumber) && (
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.75, marginTop: 2 }}>
+                        {v.department && `🏷️ ${v.department}`}
+                        {v.location && `　📍 ${v.location}`}
+                        {v.visitNumber && `　🔢 ${v.visitNumber}`}
+                      </div>
+                    )}
+                    {v.reason && (
+                      <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.65, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {v.reason}
+                      </div>
+                    )}
+                    {/* 日期 + 時間 + 醫師 */}
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5, marginTop: 2 }}>
+                      📅 {new Date(targetDate).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      {v.time && ` ⏰ ${v.time}`}
+                      {v.doctor && ` · ${v.doctor}`}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '1rem', opacity: 0.4, flexShrink: 0 }}>›</span>
+                </button>
+              );
+            })}
           </div>
         );
       })()}
