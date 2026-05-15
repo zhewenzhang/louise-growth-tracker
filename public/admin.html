@@ -213,7 +213,10 @@
     <input type="password" id="pwd-input" placeholder="管理員密碼" autocomplete="current-password" />
     <button class="btn btn-primary btn-full" onclick="doLogin()" style="margin-top:4px">🔐 登入</button>
     <p style="margin-top:20px;font-size:0.78rem;color:var(--muted)">
-      首次使用？輸入任意密碼即可設定。<br/>密碼儲存在本機瀏覽器。
+      首次使用？輸入任意密碼即可設定。<br/>密碼儲存在本機瀏覽器。<br/>
+      <span style="color:#e67e22">若無法登入，請開 DevTools → Console 執行：<br/>
+      <code style="background:#f0f0f0;padding:2px 4px;border-radius:3px">localStorage.removeItem('louise_admin_pwd')</code><br/>
+      然後重新整理頁面重設密碼。</span>
     </p>
   </div>
 </div>
@@ -329,13 +332,13 @@
 // ══════════════════════════════════════════════
 //  Firebase SDK (ESM from CDN)
 // ══════════════════════════════════════════════
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {
   getFirestore, collection, getDocs, doc, deleteDoc, setDoc, writeBatch
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import {
   getAuth, signInAnonymously, onAuthStateChanged
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDRCQgUnwfSJAAk577TmZGg82pB_l3fe1w",
@@ -399,16 +402,24 @@ let modalCallback = null;
 // ══════════════════════════════════════════════
 //  Auth / Session
 // ══════════════════════════════════════════════
-function doLogin() {
+
+// SHA-256 hash（比 btoa 安全，btoa 只是 base64 不是加密）
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function doLogin() {
   const pwd = document.getElementById('pwd-input').value.trim();
   if (!pwd) { showLoginError('請輸入密碼'); return; }
 
+  const hash = await sha256(pwd);
   const stored = localStorage.getItem(PWD_KEY);
   if (!stored) {
-    // First time — set password
-    localStorage.setItem(PWD_KEY, btoa(pwd));
+    // 首次使用 — 設定密碼
+    localStorage.setItem(PWD_KEY, hash);
     startSession();
-  } else if (btoa(pwd) === stored) {
+  } else if (hash === stored) {
     startSession();
   } else {
     showLoginError('密碼錯誤，請重試');
@@ -733,6 +744,16 @@ function switchBrowserTab(colId) {
 
 window.switchBrowserTab = switchBrowserTab;
 
+// HTML 轉義，防止 XSS
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function renderBrowserTable() {
   const content = document.getElementById('browser-content');
   const docs = allData[currentBrowserTab] || [];
@@ -778,7 +799,7 @@ function renderBrowserTable() {
                 if (v === undefined || v === null || v === '') return '<td style="opacity:0.3">—</td>';
                 if (typeof v === 'boolean') return `<td><span class="badge-tag ${v ? 'badge-ok' : 'badge-warn'}">${v ? '✓' : '✗'}</span></td>`;
                 const str = String(v);
-                return `<td><div class="td-truncate" title="${str.replace(/"/g, '&quot;')}">${str}</div></td>`;
+                return `<td><div class="td-truncate" title="${escHtml(str)}">${escHtml(str)}</div></td>`;
               }).join('')}
               <td>
                 <button class="btn btn-sm btn-danger" onclick="deleteDoc_('${currentBrowserTab}','${d._id}')">🗑️</button>
