@@ -269,6 +269,14 @@ export const AppProvider = ({ children }) => {
     setMedications(prev => prev.filter(r => r.id !== id));
     deleteMedicationFromFirestore(id);
   };
+  const updateMedication = (id, updates) => {
+    setMedications(prev => {
+      const updated = prev.map(m => m.id === id ? { ...m, ...updates } : m);
+      const target = updated.find(m => m.id === id);
+      if (target) saveMedicationToFirestore(target);
+      return updated;
+    });
+  };
 
   // Doctor Visits
   const addDoctorVisit = (r) => {
@@ -375,7 +383,7 @@ export const AppProvider = ({ children }) => {
       milestones, addMilestone, deleteMilestone,
       diaryEntries, addDiaryEntry, deleteDiaryEntry,
       bpRecords, addBpRecord, deleteBpRecord,
-      medications, addMedication, deleteMedication,
+      medications, addMedication, updateMedication, deleteMedication,
       doctorVisits, addDoctorVisit, updateDoctorVisit, deleteDoctorVisit,
       exportData, importData,
       firestoreStatus,

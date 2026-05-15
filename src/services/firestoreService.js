@@ -1,5 +1,5 @@
 import { db } from '../lib/firebase';
-import { doc, setDoc, getDoc, collection, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, deleteDoc, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
 
 /**
  * Firestore 數據服務層
@@ -200,6 +200,10 @@ export const loadMedicationsFromFirestore = async () => {
 
 export const deleteMedicationFromFirestore = async (id) => {
   try { await deleteDoc(doc(db, 'medications', id)); } catch (e) { console.warn('Firestore delete medication:', e.message); }
+};
+
+export const updateMedicationInFirestore = async (id, fields) => {
+  try { await updateDoc(doc(db, 'medications', id), fields); } catch (e) { console.warn('Firestore update medication:', e.message); }
 };
 
 // ── Doctor Visits ──
