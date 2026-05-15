@@ -488,18 +488,25 @@ const Health = ({ initialTab } = {}) => {
                         background: daysUntil <= 1 ? '#fee2e2' : daysUntil <= 3 ? '#fff3cd' : 'var(--yellow)',
                         fontSize: '0.9rem',
                       }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                           <div>
                             <strong style={{ fontFamily: 'var(--font-display)' }}>
                               {daysUntil <= 0 ? '🚨 今天回診' : daysUntil === 1 ? '⚠️ 明天回診' : `📅 ${daysUntil} 天後回診`}
                             </strong>
                             {' '}{v.hospital || '醫院'}{v.doctor && ` · ${v.doctor}`}
                           </div>
-                          <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.7 }}>
-                            {targetDate}
+                          <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.7, flexShrink: 0, marginLeft: 8 }}>
+                            {targetDate}{v.time && ` ${v.time}`}
                           </span>
                         </div>
-                        {v.reason && <p style={{ fontSize: '0.8rem', opacity: 0.6, marginTop: 4 }}>{v.reason}</p>}
+                        {(v.department || v.location || v.visitNumber) && (
+                          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.75, marginTop: 4 }}>
+                            {v.department && `🏷️ ${v.department}`}
+                            {v.location && `　📍 ${v.location}`}
+                            {v.visitNumber && `　🔢 ${v.visitNumber}`}
+                          </p>
+                        )}
+                        {v.reason && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.6, marginTop: 2 }}>{v.reason}</p>}
                       </div>
                     );
                   })}

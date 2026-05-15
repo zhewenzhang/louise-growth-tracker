@@ -447,6 +447,13 @@ const Dashboard = ({ onNavigate }) => {
                           {tagText}
                         </span>
                       </div>
+                      {(v.department || v.location || v.visitNumber) && (
+                        <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.75, marginTop: 2 }}>
+                          {v.department && `🏷️ ${v.department}`}
+                          {v.location && `　📍 ${v.location}`}
+                          {v.visitNumber && `　🔢 ${v.visitNumber}`}
+                        </div>
+                      )}
                       {v.reason && (
                         <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.65, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {v.reason}
