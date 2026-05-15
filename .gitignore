@@ -26,6 +26,12 @@ npm-debug.log*
 # 備份文件
 *-backup-old/
 
+# 備份 JSON 含個人資料，不 commit 進 repo（存到 Firebase Storage）
+# 只保留 summary.json 和 index.json（純統計，無個人資料）
+backups/*.json
+!backups/summary.json
+!backups/index.json
+
 # gstack 相關（可選）
 .gstack/
 
