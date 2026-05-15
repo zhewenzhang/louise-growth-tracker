@@ -214,12 +214,15 @@ export const saveDoctorVisitToFirestore = async (record) => {
       date: record.date,
       time: record.time || '',
       hospital: record.hospital || '',
+      location: record.location || '',
+      department: record.department || '',
+      visitNumber: record.visitNumber || '',
       doctor: record.doctor || '',
       reason: record.reason || '',
       diagnosis: record.diagnosis || '',
       advice: record.advice || '',
       followUpDate: record.followUpDate || '',
-      status: record.status || 'completed', // 'completed' | 'scheduled'
+      status: record.status || 'completed',
       createdAt: new Date().toISOString(),
     });
   } catch (e) { console.warn('Firestore save doctor visit:', e.message); }

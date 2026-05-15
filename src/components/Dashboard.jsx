@@ -455,6 +455,7 @@ const Dashboard = ({ onNavigate }) => {
                       <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5, marginTop: 2 }}>
                         {new Date(targetDate).toLocaleDateString('zh-TW')}
                         {v.doctor && ` · ${v.doctor}`}
+                        {v.department && ` · ${v.department}`}
                       </div>
                     </div>
                     <span style={{ fontSize: '1rem', opacity: 0.4, flexShrink: 0 }}>›</span>

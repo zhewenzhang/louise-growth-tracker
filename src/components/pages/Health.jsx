@@ -24,7 +24,7 @@ const Health = ({ initialTab } = {}) => {
   const [editMedId, setEditMedId] = useState(null);
   const [editMedForm, setEditMedForm] = useState({});
   // 看診表單
-  const [visitForm, setVisitForm] = useState({ date: new Date().toISOString().split('T')[0], time: '', hospital: '', doctor: '', reason: '', diagnosis: '', advice: '', followUpDate: '', status: 'completed' });
+  const [visitForm, setVisitForm] = useState({ date: new Date().toISOString().split('T')[0], time: '', hospital: '', location: '', department: '', visitNumber: '', doctor: '', reason: '', diagnosis: '', advice: '', followUpDate: '', status: 'completed' });
   // 看診編輯
   const [editVisitId, setEditVisitId] = useState(null);
   const [editVisitForm, setEditVisitForm] = useState({});
@@ -512,7 +512,7 @@ const Health = ({ initialTab } = {}) => {
               e.preventDefault();
               if (!visitForm.date) return;
               addDoctorVisit({ id: genId(), ...visitForm });
-              setVisitForm({ date: new Date().toISOString().split('T')[0], time: '', hospital: '', doctor: '', reason: '', diagnosis: '', advice: '', followUpDate: '', status: 'completed' });
+              setVisitForm({ date: new Date().toISOString().split('T')[0], time: '', hospital: '', location: '', department: '', visitNumber: '', doctor: '', reason: '', diagnosis: '', advice: '', followUpDate: '', status: 'completed' });
             }} className="card">
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: 8 }}>🏥 新增看診記錄</h3>
               <div className="space-y-2">
@@ -530,6 +530,11 @@ const Health = ({ initialTab } = {}) => {
                   <input type="text" value={visitForm.hospital} onChange={e => setVisitForm(p => ({ ...p, hospital: e.target.value }))} placeholder="醫院/診所" style={{ flex: 1 }} />
                   <input type="text" value={visitForm.doctor} onChange={e => setVisitForm(p => ({ ...p, doctor: e.target.value }))} placeholder="醫師" style={{ flex: 1 }} />
                 </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="text" value={visitForm.location} onChange={e => setVisitForm(p => ({ ...p, location: e.target.value }))} placeholder="看診地點（如：3樓門診）" style={{ flex: 1 }} />
+                  <input type="text" value={visitForm.department} onChange={e => setVisitForm(p => ({ ...p, department: e.target.value }))} placeholder="診別（如：小兒科）" style={{ flex: 1 }} />
+                </div>
+                <input type="text" value={visitForm.visitNumber} onChange={e => setVisitForm(p => ({ ...p, visitNumber: e.target.value }))} placeholder="就診號（如：A012）" />
                 <input type="text" value={visitForm.reason} onChange={e => setVisitForm(p => ({ ...p, reason: e.target.value }))} placeholder="就診原因" />
                 {visitForm.status === 'completed' && (
                   <>
@@ -576,6 +581,11 @@ const Health = ({ initialTab } = {}) => {
                             <input type="text" value={editVisitForm.hospital || ''} onChange={e => setEditVisitForm(p => ({ ...p, hospital: e.target.value }))} placeholder="醫院/診所" style={{ flex: 1 }} />
                             <input type="text" value={editVisitForm.doctor || ''} onChange={e => setEditVisitForm(p => ({ ...p, doctor: e.target.value }))} placeholder="醫師" style={{ flex: 1 }} />
                           </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <input type="text" value={editVisitForm.location || ''} onChange={e => setEditVisitForm(p => ({ ...p, location: e.target.value }))} placeholder="看診地點（如：3樓門診）" style={{ flex: 1 }} />
+                            <input type="text" value={editVisitForm.department || ''} onChange={e => setEditVisitForm(p => ({ ...p, department: e.target.value }))} placeholder="診別（如：小兒科）" style={{ flex: 1 }} />
+                          </div>
+                          <input type="text" value={editVisitForm.visitNumber || ''} onChange={e => setEditVisitForm(p => ({ ...p, visitNumber: e.target.value }))} placeholder="就診號（如：A012）" />
                           <input type="text" value={editVisitForm.reason || ''} onChange={e => setEditVisitForm(p => ({ ...p, reason: e.target.value }))} placeholder="就診原因" />
                           <input type="text" value={editVisitForm.diagnosis || ''} onChange={e => setEditVisitForm(p => ({ ...p, diagnosis: e.target.value }))} placeholder="診斷結果" />
                           <textarea value={editVisitForm.advice || ''} onChange={e => setEditVisitForm(p => ({ ...p, advice: e.target.value }))} placeholder="醫生囑咐 / 注意事項" rows="3" style={{ resize: 'none' }} />
@@ -601,11 +611,18 @@ const Health = ({ initialTab } = {}) => {
                             </div>
                             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                               <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5 }}>{r.date}</span>
-                              <button onClick={() => { setEditVisitId(r.id); setEditVisitForm({ status: r.status, date: r.date, time: r.time, hospital: r.hospital, doctor: r.doctor, reason: r.reason, diagnosis: r.diagnosis, advice: r.advice, followUpDate: r.followUpDate }); }} className="btn-sm" style={{ fontSize: '0.7rem' }}>✏️</button>
+                              <button onClick={() => { setEditVisitId(r.id); setEditVisitForm({ status: r.status, date: r.date, time: r.time, hospital: r.hospital, location: r.location, department: r.department, visitNumber: r.visitNumber, doctor: r.doctor, reason: r.reason, diagnosis: r.diagnosis, advice: r.advice, followUpDate: r.followUpDate }); }} className="btn-sm" style={{ fontSize: '0.7rem' }}>✏️</button>
                               <button onClick={() => deleteDoctorVisit(r.id)} className="btn-sm" style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>🗑️</button>
                             </div>
                           </div>
                           {r.reason && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7 }}>原因：{r.reason}</p>}
+                          {(r.location || r.department || r.visitNumber) && (
+                            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.6, marginTop: 2 }}>
+                              {r.location && `📍 ${r.location}`}
+                              {r.department && `　🏷️ ${r.department}`}
+                              {r.visitNumber && `　🔢 ${r.visitNumber}`}
+                            </p>
+                          )}
                           {r.diagnosis && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7 }}>診斷：{r.diagnosis}</p>}
                           {r.advice && (
                             <div style={{ marginTop: 6, padding: '8px 10px', background: 'var(--yellow)', borderRadius: 'var(--wobbly-sm)', border: '1px solid var(--fg)' }}>
