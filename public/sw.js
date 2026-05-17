@@ -1,6 +1,6 @@
-const CACHE = 'louise-v2';
+const CACHE = 'louise-v3';
 
-// 安裝時：無需預快取，首次請求自動快取
+// 立即接管所有 client（避免舊版本繼續執行）
 self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('fetch', (e) => {
@@ -11,7 +11,15 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 靜態資源：cache-first + 後台更新
+  // HTML 一律 network-first（確保用戶總是拿到最新版本）
+  if (e.request.mode === 'navigate' || (e.request.headers.get('accept') || '').includes('text/html')) {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // 其他靜態資源：cache-first + 後台更新
   e.respondWith(
     caches.open(CACHE).then(async (cache) => {
       const cached = await cache.match(e.request);
@@ -26,6 +34,11 @@ self.addEventListener('fetch', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    Promise.all([
+      // 清除所有舊版快取
+      caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))),
+      // 立即接管所有 client（強制使用新版本）
+      self.clients.claim(),
+    ])
   );
 });

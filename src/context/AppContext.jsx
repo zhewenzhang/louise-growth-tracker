@@ -96,6 +96,35 @@ export const AppProvider = ({ children }) => {
           loadDoctorVisitsFromFirestore(),
         ]);
 
+        // ════════════════════════════════════════════════════════
+        // 救援機制：每次啟動時，把「本地有但雲端沒有」的資料推上去
+        // 即使之前有 bug 導致雲端資料丟失，只要本地還有就能找回來
+        // ════════════════════════════════════════════════════════
+        const rescueRecords = (lsKey, remoteData, saveFn, getId = r => r.id) => {
+          if (!Array.isArray(remoteData)) return 0; // 載入失敗時不救援，避免重複寫入
+          const ls = JSON.parse(localStorage.getItem(lsKey) || '[]');
+          if (!Array.isArray(ls) || ls.length === 0) return 0;
+          const remoteIds = new Set(remoteData.map(r => getId(r) || r.id));
+          const missing = ls.filter(r => !remoteIds.has(getId(r) || r.id));
+          if (missing.length > 0) {
+            console.log(`🆘 救援 ${lsKey}: 本地有 ${missing.length} 筆雲端缺失的資料，推送中...`);
+            missing.forEach(r => saveFn(r));
+          }
+          return missing.length;
+        };
+
+        let rescuedCount = 0;
+        rescuedCount += rescueRecords('louise_growth', remoteGrowth, saveGrowthToFirestore);
+        rescuedCount += rescueRecords('louise_milestones', remoteMilestones, saveMilestoneToFirestore);
+        rescuedCount += rescueRecords('louise_diary', remoteDiary, saveDiaryToFirestore);
+        rescuedCount += rescueRecords('louise_blood_pressure', remoteBp, saveBloodPressureToFirestore);
+        rescuedCount += rescueRecords('louise_medications', remoteMed, saveMedicationToFirestore);
+        rescuedCount += rescueRecords('louise_doctor_visits', remoteVisits, saveDoctorVisitToFirestore);
+
+        if (rescuedCount > 0) {
+          console.log(`✅ 已救援 ${rescuedCount} 筆遺失的資料`);
+        }
+
         // 首次遷移邏輯：只在 Firestore 真的回傳「空陣列」（不是 null/載入失敗）時，
         // 才把 localStorage 推上去。避免因為網路問題把舊資料覆蓋雲端的新資料。
         // ⚠️ 必須 await，否則 subscribeToCollection 會先收到 empty snapshot 把本地清空
