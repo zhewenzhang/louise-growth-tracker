@@ -9,7 +9,7 @@ import ChartModal from './ChartModal';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 const Dashboard = ({ onNavigate }) => {
-  const { user, growthRecords, vaccineRecords, milestones, doctorVisits, firestoreStatus } = useApp();
+  const { user, growthRecords, vaccineRecords, milestones, doctorVisits, firestoreStatus, writeError } = useApp();
   const [chartMetric, setChartMetric] = useState(null);
   const [tick, setTick] = useState(0);
 
@@ -601,6 +601,32 @@ const Dashboard = ({ onNavigate }) => {
           </button>
         </div>
       </div>
+
+      {/* Firestore 寫入錯誤警告（避免靜默吞掉錯誤） */}
+      {writeError && (
+        <div style={{
+          position: 'fixed',
+          bottom: '90px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: '#ffebee',
+          border: '2px solid var(--accent)',
+          borderRadius: 'var(--wobbly-sm)',
+          boxShadow: 'var(--shadow-sm)',
+          padding: '10px 16px',
+          fontFamily: 'var(--font-body)',
+          fontSize: '0.85rem',
+          color: 'var(--accent)',
+          zIndex: 100,
+          maxWidth: '90%',
+          textAlign: 'center',
+        }}>
+          ⚠️ 雲端同步失敗：{writeError.operation}<br/>
+          <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>
+            資料已存本地，請檢查網路或 Firestore Rules
+          </span>
+        </div>
+      )}
 
       {/* Firestore 狀態指示器 */}
       <div style={{ textAlign: 'center', padding: '16px', opacity: 0.5 }}>

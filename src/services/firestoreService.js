@@ -1,20 +1,28 @@
 import { db } from '../lib/firebase';
 import { doc, setDoc, getDoc, collection, deleteDoc, getDocs, writeBatch, updateDoc, onSnapshot } from 'firebase/firestore';
 
+// ── 寫入錯誤通知機制 ──
+// 寫入失敗�?dispatch 全域事件，AppContext 監聽後可顯示警告給用�?// 避免靜默吞掉錯誤造成「以為存了但沒存」的慘況
+const notifyWriteError = (operation, error) => {
+  console.error(`🔥 Firestore ${operation} FAILED:`, error.code || '', error.message);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('firestore-write-error', {
+      detail: { operation, code: error.code, message: error.message, timestamp: Date.now() },
+    }));
+  }
+};
+
 /**
- * Firestore 數據服務層
- * 
- * 架構模式：
- *   Collection: growth_records → { id, userId, date, type, value, unit, createdAt }
+ * Firestore 數據服務�? * 
+ * 架構模式�? *   Collection: growth_records �?{ id, userId, date, type, value, unit, createdAt }
  *     type: 'weight' | 'height' | 'headCircumference' | 'chestCircumference'
- *   Collection: vaccines → { id, userId, name, dose, recommendedAge, ageMonths, dueDate, completed, date, updatedAt }
- *   Collection: milestones → { id, userId, title, date, emoji, note, createdAt }
- *   Collection: diary_entries → { id, userId, title, date, content, createdAt }
- *   Collection: users → { name, birthDate, gender, updatedAt }  (doc id: louise_default)
+ *   Collection: vaccines �?{ id, userId, name, dose, recommendedAge, ageMonths, dueDate, completed, date, updatedAt }
+ *   Collection: milestones �?{ id, userId, title, date, emoji, note, createdAt }
+ *   Collection: diary_entries �?{ id, userId, title, date, content, createdAt }
+ *   Collection: users �?{ name, birthDate, gender, updatedAt }  (doc id: louise_default)
  * 
- * 新增功能時只需：
- *   1. 如果是新的 growth type → growth_records 已支援，只需在 UI 加 tab
- *   2. 如果是新的 collection → 複製現有 save/load/delete 函數模式
+ * 新增功能時只需�? *   1. 如果是新�?growth type �?growth_records 已支援，只需�?UI �?tab
+ *   2. 如果是新�?collection �?複製現有 save/load/delete 函數模式
  */
 
 const USER_ID = 'louise_default';
@@ -29,7 +37,7 @@ export const saveUserToFirestore = async (user) => {
       gender: user.gender || 'female',
       updatedAt: new Date().toISOString(),
     }, { merge: true });
-  } catch (e) { console.warn('Firestore save user:', e.message); }
+  } catch (e) { notifyWriteError('save user', e); }
 };
 
 export const loadUserFromFirestore = async () => {
@@ -55,11 +63,10 @@ export const saveGrowthToFirestore = async (record) => {
     };
     // 奶量記錄附帶時間
     if (record.time) data.time = record.time;
-    // 母乳/配方奶明細
-    if (record.breastMilk !== undefined) data.breastMilk = record.breastMilk;
+    // 母乳/配方奶明�?    if (record.breastMilk !== undefined) data.breastMilk = record.breastMilk;
     if (record.formula !== undefined) data.formula = record.formula;
     await setDoc(doc(db, 'growth_records', record.id), data);
-  } catch (e) { console.warn('Firestore save growth:', e.message); }
+  } catch (e) { notifyWriteError('save growth', e); }
 };
 
 export const loadGrowthFromFirestore = async () => {
@@ -75,7 +82,7 @@ export const loadGrowthFromFirestore = async () => {
 };
 
 export const deleteGrowthFromFirestore = async (id) => {
-  try { await deleteDoc(doc(db, 'growth_records', id)); } catch (e) { console.warn('Firestore delete growth:', e.message); }
+  try { await deleteDoc(doc(db, 'growth_records', id)); } catch (e) { notifyWriteError('delete growth', e); }
 };
 
 // ── Vaccines ──
@@ -98,7 +105,7 @@ export const saveVaccinesToFirestore = async (vaccines) => {
       }, { merge: true });
     });
     await batch.commit();
-  } catch (e) { console.warn('Firestore save vaccines:', e.message); }
+  } catch (e) { notifyWriteError('save vaccines', e); }
 };
 
 export const loadVaccinesFromFirestore = async () => {
@@ -124,7 +131,7 @@ export const saveMilestoneToFirestore = async (record) => {
       note: record.note || '',
       createdAt: new Date().toISOString(),
     });
-  } catch (e) { console.warn('Firestore save milestone:', e.message); }
+  } catch (e) { notifyWriteError('save milestone', e); }
 };
 
 export const loadMilestonesFromFirestore = async () => {
@@ -140,7 +147,7 @@ export const loadMilestonesFromFirestore = async () => {
 };
 
 export const deleteMilestoneFromFirestore = async (id) => {
-  try { await deleteDoc(doc(db, 'milestones', id)); } catch (e) { console.warn('Firestore delete milestone:', e.message); }
+  try { await deleteDoc(doc(db, 'milestones', id)); } catch (e) { notifyWriteError('delete milestone', e); }
 };
 
 // ── Diary ──
@@ -153,7 +160,7 @@ export const saveDiaryToFirestore = async (record) => {
       content: record.content,
       createdAt: new Date().toISOString(),
     });
-  } catch (e) { console.warn('Firestore save diary:', e.message); }
+  } catch (e) { notifyWriteError('save diary', e); }
 };
 
 export const loadDiaryFromFirestore = async () => {
@@ -169,7 +176,7 @@ export const loadDiaryFromFirestore = async () => {
 };
 
 export const deleteDiaryFromFirestore = async (id) => {
-  try { await deleteDoc(doc(db, 'diary_entries', id)); } catch (e) { console.warn('Firestore delete diary:', e.message); }
+  try { await deleteDoc(doc(db, 'diary_entries', id)); } catch (e) { notifyWriteError('delete diary', e); }
 };
 
 // ── Medications ──
@@ -186,7 +193,7 @@ export const saveMedicationToFirestore = async (record) => {
       note: record.note || '',
       createdAt: new Date().toISOString(),
     });
-  } catch (e) { console.warn('Firestore save medication:', e.message); }
+  } catch (e) { notifyWriteError('save medication', e); }
 };
 
 export const loadMedicationsFromFirestore = async () => {
@@ -199,11 +206,11 @@ export const loadMedicationsFromFirestore = async () => {
 };
 
 export const deleteMedicationFromFirestore = async (id) => {
-  try { await deleteDoc(doc(db, 'medications', id)); } catch (e) { console.warn('Firestore delete medication:', e.message); }
+  try { await deleteDoc(doc(db, 'medications', id)); } catch (e) { notifyWriteError('delete medication', e); }
 };
 
 export const updateMedicationInFirestore = async (id, fields) => {
-  try { await updateDoc(doc(db, 'medications', id), fields); } catch (e) { console.warn('Firestore update medication:', e.message); }
+  try { await updateDoc(doc(db, 'medications', id), fields); } catch (e) { notifyWriteError('update medication', e); }
 };
 
 // ── Doctor Visits ──
@@ -226,7 +233,7 @@ export const saveDoctorVisitToFirestore = async (record) => {
       status: record.status || 'completed',
       createdAt: new Date().toISOString(),
     });
-  } catch (e) { console.warn('Firestore save doctor visit:', e.message); }
+  } catch (e) { notifyWriteError('save doctor visit', e); }
 };
 
 export const loadDoctorVisitsFromFirestore = async () => {
@@ -239,7 +246,7 @@ export const loadDoctorVisitsFromFirestore = async () => {
 };
 
 export const deleteDoctorVisitFromFirestore = async (id) => {
-  try { await deleteDoc(doc(db, 'doctor_visits', id)); } catch (e) { console.warn('Firestore delete doctor visit:', e.message); }
+  try { await deleteDoc(doc(db, 'doctor_visits', id)); } catch (e) { notifyWriteError('delete doctor visit', e); }
 };
 
 // ── Blood Pressure ──
@@ -254,7 +261,7 @@ export const saveBloodPressureToFirestore = async (record) => {
       pulse: record.pulse,
       createdAt: new Date().toISOString(),
     });
-  } catch (e) { console.warn('Firestore save BP:', e.message); }
+  } catch (e) { notifyWriteError('save BP', e); }
 };
 
 export const loadBloodPressureFromFirestore = async () => {
@@ -267,18 +274,16 @@ export const loadBloodPressureFromFirestore = async () => {
 };
 
 export const deleteBloodPressureFromFirestore = async (id) => {
-  try { await deleteDoc(doc(db, 'blood_pressure', id)); } catch (e) { console.warn('Firestore delete BP:', e.message); }
+  try { await deleteDoc(doc(db, 'blood_pressure', id)); } catch (e) { notifyWriteError('delete BP', e); }
 };
 
 
 // ════════════════════════════════════════════════════════════════
-//  即時同步訂閱（onSnapshot）
-//  解決多裝置同步問題：任何裝置寫入 Firestore，所有監聽中的裝置會即時收到更新
+//  即時同步訂閱（onSnapshot�?//  解決多裝置同步問題：任何裝置寫入 Firestore，所有監聽中的裝置會即時收到更新
 // ════════════════════════════════════════════════════════════════
 
 /**
- * 訂閱單一文件（用於 user）
- * @returns unsubscribe function
+ * 訂閱單一文件（用�?user�? * @returns unsubscribe function
  */
 export const subscribeToUser = (callback) => {
   return onSnapshot(doc(db, 'users', USER_ID), (snap) => {
@@ -289,7 +294,7 @@ export const subscribeToUser = (callback) => {
 };
 
 /**
- * 訂閱整個 collection
+ * 訂閱整�?collection
  * @param colName collection 名稱
  * @param sortFn 可選排序函數
  * @returns unsubscribe function

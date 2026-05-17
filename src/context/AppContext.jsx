@@ -30,6 +30,24 @@ export const AppProvider = ({ children }) => {
   const [doctorVisits, setDoctorVisits] = useLocalStorage('louise_doctor_visits', []);
   const [loaded, setLoaded] = useState(false);
   const [firestoreStatus, setFirestoreStatus] = useState('connecting'); // 'connecting' | 'connected' | 'empty' | 'error'
+  const [writeError, setWriteError] = useState(null); // 寫入失敗時的最新錯誤
+
+  // 監聽 Firestore 寫入失敗事件（避免靜默吞掉錯誤）
+  useEffect(() => {
+    const handler = (e) => {
+      setWriteError({
+        operation: e.detail.operation,
+        message: e.detail.message,
+        timestamp: e.detail.timestamp,
+      });
+      // 5 秒後自動清除（除非有新錯誤覆蓋）
+      setTimeout(() => {
+        setWriteError(prev => (prev && prev.timestamp === e.detail.timestamp) ? null : prev);
+      }, 8000);
+    };
+    window.addEventListener('firestore-write-error', handler);
+    return () => window.removeEventListener('firestore-write-error', handler);
+  }, []);
 
   // 初始化：訂閱 Firestore 即時更新（支援多裝置同步）
   useEffect(() => {
@@ -80,37 +98,47 @@ export const AppProvider = ({ children }) => {
 
         // 首次遷移邏輯：只在 Firestore 真的回傳「空陣列」（不是 null/載入失敗）時，
         // 才把 localStorage 推上去。避免因為網路問題把舊資料覆蓋雲端的新資料。
+        // ⚠️ 必須 await，否則 subscribeToCollection 會先收到 empty snapshot 把本地清空
+        const migrationPromises = [];
+
         if (Array.isArray(remoteGrowth) && remoteGrowth.length === 0) {
           const ls = JSON.parse(localStorage.getItem('louise_growth') || '[]');
-          if (ls.length > 0) ls.forEach(r => saveGrowthToFirestore(r));
+          if (ls.length > 0) ls.forEach(r => migrationPromises.push(saveGrowthToFirestore(r)));
         }
         if (Array.isArray(remoteVaccines) && remoteVaccines.length === 0) {
           const ls = JSON.parse(localStorage.getItem('louise_vaccines') || 'null');
-          if (ls && ls.length > 0) saveVaccinesToFirestore(ls);
+          if (ls && ls.length > 0) migrationPromises.push(saveVaccinesToFirestore(ls));
         }
         if (Array.isArray(remoteMilestones) && remoteMilestones.length === 0) {
           const ls = JSON.parse(localStorage.getItem('louise_milestones') || '[]');
-          if (ls.length > 0) ls.forEach(r => saveMilestoneToFirestore(r));
+          if (ls.length > 0) ls.forEach(r => migrationPromises.push(saveMilestoneToFirestore(r)));
         }
         if (Array.isArray(remoteDiary) && remoteDiary.length === 0) {
           const ls = JSON.parse(localStorage.getItem('louise_diary') || '[]');
-          if (ls.length > 0) ls.forEach(r => saveDiaryToFirestore(r));
+          if (ls.length > 0) ls.forEach(r => migrationPromises.push(saveDiaryToFirestore(r)));
         }
         if (Array.isArray(remoteBp) && remoteBp.length === 0) {
           const ls = JSON.parse(localStorage.getItem('louise_blood_pressure') || '[]');
-          if (ls.length > 0) ls.forEach(r => saveBloodPressureToFirestore(r));
+          if (ls.length > 0) ls.forEach(r => migrationPromises.push(saveBloodPressureToFirestore(r)));
         }
         if (Array.isArray(remoteMed) && remoteMed.length === 0) {
           const ls = JSON.parse(localStorage.getItem('louise_medications') || '[]');
-          if (ls.length > 0) ls.forEach(r => saveMedicationToFirestore(r));
+          if (ls.length > 0) ls.forEach(r => migrationPromises.push(saveMedicationToFirestore(r)));
         }
         if (Array.isArray(remoteVisits) && remoteVisits.length === 0) {
           const ls = JSON.parse(localStorage.getItem('louise_doctor_visits') || '[]');
-          if (ls.length > 0) ls.forEach(r => saveDoctorVisitToFirestore(r));
+          if (ls.length > 0) ls.forEach(r => migrationPromises.push(saveDoctorVisitToFirestore(r)));
         }
         if (!remoteUser) {
           const lsUser = JSON.parse(localStorage.getItem('louise_user') || 'null');
-          if (lsUser?.name) saveUserToFirestore(lsUser);
+          if (lsUser?.name) migrationPromises.push(saveUserToFirestore(lsUser));
+        }
+
+        // 等遷移完成才開始訂閱，避免 empty snapshot 清空本地資料
+        if (migrationPromises.length > 0) {
+          console.log(`📤 首次遷移 ${migrationPromises.length} 筆本地資料到雲端...`);
+          await Promise.all(migrationPromises);
+          console.log('✅ 首次遷移完成');
         }
 
         // ── 訂閱即時同步（核心同步邏輯）──
@@ -138,13 +166,22 @@ export const AppProvider = ({ children }) => {
         }, (a, b) => new Date(a.date) - new Date(b.date)));
 
         unsubscribers.push(subscribeToCollection('vaccines', (data) => {
-          // 取最新的 birthDate 重新計算疫苗日期
+          // 不再強制重算 dueDate（避免覆蓋手動編輯）
+          // dueDate 已經在 saveVaccinesToFirestore 時保存到雲端，直接用即可
+          // 只在缺失時補算（保險起見）
           const currentBirthDate = remoteUser?.birthDate
             || JSON.parse(localStorage.getItem('louise_user') || '{}').birthDate
             || '2026-04-26';
-          const vWithDates = calcVaccineDates(data, currentBirthDate);
-          setVaccineRecords(vWithDates);
-          localStorage.setItem('louise_vaccines', JSON.stringify(vWithDates));
+          const filled = data.map(v => {
+            if (v.dueDate) return v; // 已有 dueDate（不論手動還是計算過的）
+            // 缺 dueDate 才計算
+            const birth = new Date(currentBirthDate);
+            const due = new Date(birth);
+            due.setMonth(birth.getMonth() + (v.ageMonths || 0));
+            return { ...v, dueDate: due.toISOString().split('T')[0] };
+          });
+          setVaccineRecords(filled);
+          localStorage.setItem('louise_vaccines', JSON.stringify(filled));
           markLoaded();
         }, (a, b) => (a.ageMonths || 0) - (b.ageMonths || 0)));
 
@@ -407,6 +444,7 @@ export const AppProvider = ({ children }) => {
       doctorVisits, addDoctorVisit, updateDoctorVisit, deleteDoctorVisit,
       exportData, importData,
       firestoreStatus,
+      writeError,
     }}>
       {children}
     </AppContext.Provider>
