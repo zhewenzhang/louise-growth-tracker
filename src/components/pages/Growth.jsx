@@ -42,6 +42,8 @@ const Growth = () => {
       record.breastMilk = bm;
       record.formula = fm;
       record.value = bm + fm; // 總量供統計用
+      // 防衛：標記資料來自新版本（後續可用於診斷）
+      record._schemaVersion = 2;
     } else {
       if (!value) return;
       record.value = parseFloat(value);
@@ -162,14 +164,33 @@ const Growth = () => {
             {sortedRecords.map(record => (
               <div key={record.id} className="card p-3 flex justify-between items-center animate-in">
                 <div>
-                  {record.type === 'feeding' ? (
-                    <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
-                      {record.breastMilk > 0 && `🤱${record.breastMilk}`}
-                      {record.breastMilk > 0 && record.formula > 0 && ' + '}
-                      {record.formula > 0 && `🍼${record.formula}`}
-                      <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> = {record.value} ml</span>
-                    </span>
-                  ) : (
+                  {record.type === 'feeding' ? (() => {
+                    const bm = Number(record.breastMilk) || 0;
+                    const fm = Number(record.formula) || 0;
+                    const total = Number(record.value) || 0;
+                    // 如果有 breastMilk/formula 明細，顯示詳細
+                    const hasDetail = bm > 0 || fm > 0;
+                    return (
+                      <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
+                        {hasDetail ? (
+                          <>
+                            {bm > 0 && `🤱${bm}`}
+                            {bm > 0 && fm > 0 && ' + '}
+                            {fm > 0 && `🍼${fm}`}
+                            {(bm + fm !== total) && (
+                              <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> = {total} ml</span>
+                            )}
+                            {(bm + fm === total) && (
+                              <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> ml</span>
+                            )}
+                          </>
+                        ) : (
+                          // 缺明細時，至少顯示總量（避免空白只剩 "= 89 ml"）
+                          <>🍼 {total} ml</>
+                        )}
+                      </span>
+                    );
+                  })() : (
                     <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
                       {record.value} {record.unit}
                     </span>
