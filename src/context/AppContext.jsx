@@ -12,6 +12,7 @@ import {
   saveBloodPressureToFirestore, loadBloodPressureFromFirestore, deleteBloodPressureFromFirestore,
   saveMedicationToFirestore, loadMedicationsFromFirestore, deleteMedicationFromFirestore,
   saveDoctorVisitToFirestore, loadDoctorVisitsFromFirestore, deleteDoctorVisitFromFirestore,
+  subscribeToUser, subscribeToCollection,
 } from '../services/firestoreService';
 
 const AppContext = createContext();
@@ -30,7 +31,7 @@ export const AppProvider = ({ children }) => {
   const [loaded, setLoaded] = useState(false);
   const [firestoreStatus, setFirestoreStatus] = useState('connecting'); // 'connecting' | 'connected' | 'empty' | 'error'
 
-  // 初始化：從 Firestore 同步數據（Firestore 為權威來源）
+  // 初始化：訂閱 Firestore 即時更新（支援多裝置同步）
   useEffect(() => {
     // Safety timeout: 即使 Firestore 完全不通，8 秒後強制進入離線模式
     const timeoutId = setTimeout(() => {
@@ -44,22 +45,28 @@ export const AppProvider = ({ children }) => {
       });
     }, 8000);
 
+    const unsubscribers = [];
+    let firstSnapReceived = false;
+    const markLoaded = () => {
+      if (!firstSnapReceived) {
+        firstSnapReceived = true;
+        setLoaded(true);
+        setFirestoreStatus('connected');
+        clearTimeout(timeoutId);
+      }
+    };
+
     (async () => {
       // 匿名登入（必須先完成才能讀寫 Firestore，規則要求 auth != null）
       await ensureAuth();
 
-      let anySuccess = false;
       try {
-        // 並行載入所有 Collections（從串行改為並行，載入時間從 ~4 秒降到 ~1 秒）
+        // ── 一次性讀取（首次資料遷移用）──
+        // 如果 Firestore 完全為空但 localStorage 有資料，把本地資料推上去
+        // 之後就完全靠 onSnapshot 即時同步
         const [
-          remoteUser,
-          remoteGrowth,
-          remoteVaccines,
-          remoteMilestones,
-          remoteDiary,
-          remoteBp,
-          remoteMed,
-          remoteVisits,
+          remoteUser, remoteGrowth, remoteVaccines, remoteMilestones,
+          remoteDiary, remoteBp, remoteMed, remoteVisits,
         ] = await Promise.all([
           loadUserFromFirestore(),
           loadGrowthFromFirestore(),
@@ -71,105 +78,119 @@ export const AppProvider = ({ children }) => {
           loadDoctorVisitsFromFirestore(),
         ]);
 
-        // User
-        if (remoteUser?.name) {
-          setUser({
-            name: remoteUser.name,
-            birthDate: remoteUser.birthDate,
-            dueDate: remoteUser.dueDate || remoteUser.birthDate,
-            gender: remoteUser.gender || 'female'
-          });
-          anySuccess = true;
-        } else if (!remoteUser) {
+        // 首次遷移邏輯：只在 Firestore 真的回傳「空陣列」（不是 null/載入失敗）時，
+        // 才把 localStorage 推上去。避免因為網路問題把舊資料覆蓋雲端的新資料。
+        if (Array.isArray(remoteGrowth) && remoteGrowth.length === 0) {
+          const ls = JSON.parse(localStorage.getItem('louise_growth') || '[]');
+          if (ls.length > 0) ls.forEach(r => saveGrowthToFirestore(r));
+        }
+        if (Array.isArray(remoteVaccines) && remoteVaccines.length === 0) {
+          const ls = JSON.parse(localStorage.getItem('louise_vaccines') || 'null');
+          if (ls && ls.length > 0) saveVaccinesToFirestore(ls);
+        }
+        if (Array.isArray(remoteMilestones) && remoteMilestones.length === 0) {
+          const ls = JSON.parse(localStorage.getItem('louise_milestones') || '[]');
+          if (ls.length > 0) ls.forEach(r => saveMilestoneToFirestore(r));
+        }
+        if (Array.isArray(remoteDiary) && remoteDiary.length === 0) {
+          const ls = JSON.parse(localStorage.getItem('louise_diary') || '[]');
+          if (ls.length > 0) ls.forEach(r => saveDiaryToFirestore(r));
+        }
+        if (Array.isArray(remoteBp) && remoteBp.length === 0) {
+          const ls = JSON.parse(localStorage.getItem('louise_blood_pressure') || '[]');
+          if (ls.length > 0) ls.forEach(r => saveBloodPressureToFirestore(r));
+        }
+        if (Array.isArray(remoteMed) && remoteMed.length === 0) {
+          const ls = JSON.parse(localStorage.getItem('louise_medications') || '[]');
+          if (ls.length > 0) ls.forEach(r => saveMedicationToFirestore(r));
+        }
+        if (Array.isArray(remoteVisits) && remoteVisits.length === 0) {
+          const ls = JSON.parse(localStorage.getItem('louise_doctor_visits') || '[]');
+          if (ls.length > 0) ls.forEach(r => saveDoctorVisitToFirestore(r));
+        }
+        if (!remoteUser) {
           const lsUser = JSON.parse(localStorage.getItem('louise_user') || 'null');
           if (lsUser?.name) saveUserToFirestore(lsUser);
         }
 
-        // Growth Records
-        if (remoteGrowth && remoteGrowth.length > 0) {
-          setGrowthRecords(remoteGrowth);
-          localStorage.setItem('louise_growth', JSON.stringify(remoteGrowth));
-          anySuccess = true;
-        } else {
-          const lsGrowth = JSON.parse(localStorage.getItem('louise_growth') || '[]');
-          if (lsGrowth.length > 0) {
-            lsGrowth.forEach(r => saveGrowthToFirestore(r));
+        // ── 訂閱即時同步（核心同步邏輯）──
+        // 任何裝置寫入 Firestore，所有訂閱中的裝置會即時收到更新
+        unsubscribers.push(subscribeToUser((data) => {
+          if (data?.name) {
+            setUser({
+              name: data.name,
+              birthDate: data.birthDate,
+              dueDate: data.dueDate || data.birthDate,
+              gender: data.gender || 'female',
+            });
+            localStorage.setItem('louise_user', JSON.stringify({
+              name: data.name, birthDate: data.birthDate,
+              dueDate: data.dueDate || data.birthDate, gender: data.gender || 'female',
+            }));
           }
-        }
+          markLoaded();
+        }));
 
-        // Vaccines
-        if (remoteVaccines && remoteVaccines.length > 0) {
-          const currentBirthDate = remoteUser?.birthDate || user?.birthDate || '2026-04-26';
-          const vWithDates = calcVaccineDates(remoteVaccines, currentBirthDate);
+        unsubscribers.push(subscribeToCollection('growth_records', (data) => {
+          setGrowthRecords(data);
+          localStorage.setItem('louise_growth', JSON.stringify(data));
+          markLoaded();
+        }, (a, b) => new Date(a.date) - new Date(b.date)));
+
+        unsubscribers.push(subscribeToCollection('vaccines', (data) => {
+          // 取最新的 birthDate 重新計算疫苗日期
+          const currentBirthDate = remoteUser?.birthDate
+            || JSON.parse(localStorage.getItem('louise_user') || '{}').birthDate
+            || '2026-04-26';
+          const vWithDates = calcVaccineDates(data, currentBirthDate);
           setVaccineRecords(vWithDates);
           localStorage.setItem('louise_vaccines', JSON.stringify(vWithDates));
-          anySuccess = true;
-        } else {
-          const lsVaccines = JSON.parse(localStorage.getItem('louise_vaccines') || 'null');
-          if (lsVaccines && lsVaccines.length > 0) {
-            setVaccineRecords(lsVaccines);
-            saveVaccinesToFirestore(lsVaccines);
-          }
-        }
+          markLoaded();
+        }, (a, b) => (a.ageMonths || 0) - (b.ageMonths || 0)));
 
-        // Milestones
-        if (remoteMilestones && remoteMilestones.length > 0) {
-          setMilestones(remoteMilestones);
-          localStorage.setItem('louise_milestones', JSON.stringify(remoteMilestones));
-          anySuccess = true;
-        } else {
-          const lsMilestones = JSON.parse(localStorage.getItem('louise_milestones') || '[]');
-          if (lsMilestones.length > 0) lsMilestones.forEach(r => saveMilestoneToFirestore(r));
-        }
+        unsubscribers.push(subscribeToCollection('milestones', (data) => {
+          setMilestones(data);
+          localStorage.setItem('louise_milestones', JSON.stringify(data));
+          markLoaded();
+        }, (a, b) => new Date(b.date) - new Date(a.date)));
 
-        // Diary
-        if (remoteDiary && remoteDiary.length > 0) {
-          setDiaryEntries(remoteDiary);
-          localStorage.setItem('louise_diary', JSON.stringify(remoteDiary));
-          anySuccess = true;
-        } else {
-          const lsDiary = JSON.parse(localStorage.getItem('louise_diary') || '[]');
-          if (lsDiary.length > 0) lsDiary.forEach(r => saveDiaryToFirestore(r));
-        }
+        unsubscribers.push(subscribeToCollection('diary_entries', (data) => {
+          setDiaryEntries(data);
+          localStorage.setItem('louise_diary', JSON.stringify(data));
+          markLoaded();
+        }, (a, b) => new Date(b.date) - new Date(a.date)));
 
-        // Blood Pressure
-        if (remoteBp && remoteBp.length > 0) {
-          setBpRecords(remoteBp);
-          localStorage.setItem('louise_blood_pressure', JSON.stringify(remoteBp));
-          anySuccess = true;
-        } else {
-          const lsBp = JSON.parse(localStorage.getItem('louise_blood_pressure') || '[]');
-          if (lsBp.length > 0) lsBp.forEach(r => saveBloodPressureToFirestore(r));
-        }
+        unsubscribers.push(subscribeToCollection('blood_pressure', (data) => {
+          setBpRecords(data);
+          localStorage.setItem('louise_blood_pressure', JSON.stringify(data));
+          markLoaded();
+        }, (a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00'))));
 
-        // Medications
-        if (remoteMed && remoteMed.length > 0) {
-          setMedications(remoteMed);
-          localStorage.setItem('louise_medications', JSON.stringify(remoteMed));
-          anySuccess = true;
-        } else {
-          const lsMed = JSON.parse(localStorage.getItem('louise_medications') || '[]');
-          if (lsMed.length > 0) lsMed.forEach(r => saveMedicationToFirestore(r));
-        }
+        unsubscribers.push(subscribeToCollection('medications', (data) => {
+          setMedications(data);
+          localStorage.setItem('louise_medications', JSON.stringify(data));
+          markLoaded();
+        }, (a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00'))));
 
-        // Doctor Visits
-        if (remoteVisits && remoteVisits.length > 0) {
-          setDoctorVisits(remoteVisits);
-          localStorage.setItem('louise_doctor_visits', JSON.stringify(remoteVisits));
-          anySuccess = true;
-        } else {
-          const lsVisits = JSON.parse(localStorage.getItem('louise_doctor_visits') || '[]');
-          if (lsVisits.length > 0) lsVisits.forEach(r => saveDoctorVisitToFirestore(r));
-        }
+        unsubscribers.push(subscribeToCollection('doctor_visits', (data) => {
+          setDoctorVisits(data);
+          localStorage.setItem('louise_doctor_visits', JSON.stringify(data));
+          markLoaded();
+        }, (a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00'))));
 
-        setFirestoreStatus(anySuccess ? 'connected' : 'empty');
       } catch (e) {
-        console.error('Firestore 初始化錯誤:', e.code, e.message, e);
+        console.error('Firestore 訂閱錯誤:', e.code, e.message, e);
         setFirestoreStatus('error');
+        setLoaded(true);
+        clearTimeout(timeoutId);
       }
-      setLoaded(true);
-      clearTimeout(timeoutId);
     })();
+
+    // 組件卸載時取消所有訂閱
+    return () => {
+      unsubscribers.forEach(unsub => { try { unsub(); } catch {} });
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   // Growth

@@ -1,5 +1,5 @@
 import { db } from '../lib/firebase';
-import { doc, setDoc, getDoc, collection, deleteDoc, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, deleteDoc, getDocs, writeBatch, updateDoc, onSnapshot } from 'firebase/firestore';
 
 /**
  * Firestore 數據服務層
@@ -268,4 +268,38 @@ export const loadBloodPressureFromFirestore = async () => {
 
 export const deleteBloodPressureFromFirestore = async (id) => {
   try { await deleteDoc(doc(db, 'blood_pressure', id)); } catch (e) { console.warn('Firestore delete BP:', e.message); }
+};
+
+
+// ════════════════════════════════════════════════════════════════
+//  即時同步訂閱（onSnapshot）
+//  解決多裝置同步問題：任何裝置寫入 Firestore，所有監聽中的裝置會即時收到更新
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * 訂閱單一文件（用於 user）
+ * @returns unsubscribe function
+ */
+export const subscribeToUser = (callback) => {
+  return onSnapshot(doc(db, 'users', USER_ID), (snap) => {
+    if (snap.exists()) callback(snap.data());
+  }, (err) => {
+    console.warn('🔥 subscribe user error:', err.message);
+  });
+};
+
+/**
+ * 訂閱整個 collection
+ * @param colName collection 名稱
+ * @param sortFn 可選排序函數
+ * @returns unsubscribe function
+ */
+export const subscribeToCollection = (colName, callback, sortFn) => {
+  return onSnapshot(collection(db, colName), (snap) => {
+    let data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (sortFn) data.sort(sortFn);
+    callback(data);
+  }, (err) => {
+    console.warn(`🔥 subscribe ${colName} error:`, err.message);
+  });
 };
