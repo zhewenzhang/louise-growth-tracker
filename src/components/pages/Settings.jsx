@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext.jsx';
 import { getCurrentUid } from '../../lib/firebase';
 import { hasPinSet, removePin } from '../../utils/pinLock';
 import { getTheme, setTheme } from '../../utils/theme';
+import { APP_VERSION, BUILD_TIME, formatBuildTime, forceUpdate, checkForUpdate } from '../../utils/version';
 import PinSetup from '../PinSetup';
 
 const Settings = () => {
@@ -22,6 +23,21 @@ const Settings = () => {
   const [pinExists, setPinExists] = useState(hasPinSet());
   const [pinStatus, setPinStatus] = useState('');
   const [theme, setThemeState] = useState(getTheme());
+  const [updateStatus, setUpdateStatus] = useState(''); // 'checking' | 'latest' | 'available' | ''
+  const [updating, setUpdating] = useState(false);
+
+  const handleCheckUpdate = async () => {
+    setUpdateStatus('checking');
+    const hasUpdate = await checkForUpdate();
+    setUpdateStatus(hasUpdate ? 'available' : 'latest');
+    setTimeout(() => setUpdateStatus(prev => prev === 'latest' ? '' : prev), 4000);
+  };
+
+  const handleForceUpdate = async () => {
+    if (!confirm('確定要強制更新到最新版本嗎？\n\n你的資料（成長記錄、看診、日記等）都會保留，只會清除網頁快取。')) return;
+    setUpdating(true);
+    await forceUpdate();
+  };
 
   const handleToggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -281,11 +297,69 @@ service cloud.firestore {
           </div>
         </div>
 
+        {/* 版本與更新 */}
+        <div className="card">
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 12 }}>🔄 版本與更新</h3>
+          <div className="space-y-3">
+            <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.9rem', lineHeight: 1.7 }}>
+              <p>📦 版本：<strong style={{ fontFamily: 'monospace' }}>{APP_VERSION}</strong></p>
+              <p>🛠️ 構建時間：<strong>{formatBuildTime()}</strong></p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                onClick={handleCheckUpdate}
+                className="btn"
+                style={{ flex: 1, minWidth: 140 }}
+                disabled={updateStatus === 'checking' || updating}
+              >
+                {updateStatus === 'checking' ? '⏳ 檢查中...' : '🔍 檢查更新'}
+              </button>
+              <button
+                onClick={handleForceUpdate}
+                className="btn"
+                style={{
+                  flex: 1, minWidth: 140,
+                  background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)',
+                }}
+                disabled={updating}
+              >
+                {updating ? '⏳ 更新中...' : '⚡ 強制更新'}
+              </button>
+            </div>
+
+            {updateStatus === 'available' && (
+              <p style={{ textAlign: 'center', fontFamily: 'var(--font-body)', color: 'var(--accent)', fontSize: '0.9rem' }}>
+                🎉 發現新版本！請點「⚡ 強制更新」立即更新
+              </p>
+            )}
+            {updateStatus === 'latest' && (
+              <p style={{ textAlign: 'center', fontFamily: 'var(--font-body)', color: 'var(--green)', fontSize: '0.9rem' }}>
+                ✅ 已是最新版本
+              </p>
+            )}
+
+            <details>
+              <summary style={{ cursor: 'pointer', fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7 }}>
+                ℹ️ 強制更新會做什麼？
+              </summary>
+              <div style={{ marginTop: 8, fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.7, lineHeight: 1.6 }}>
+                <p>• 取消註冊舊的 Service Worker</p>
+                <p>• 清除所有網頁快取（HTML/JS/CSS/圖片）</p>
+                <p>• 強制重新載入頁面，繞過所有快取</p>
+                <p style={{ color: 'var(--green)', marginTop: 6 }}>
+                  ✅ 你的資料（成長記錄、看診、日記等）<strong>不會</strong>被刪除
+                </p>
+              </div>
+            </details>
+          </div>
+        </div>
+
         {/* 關於 */}
         <div className="card">
           <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 8 }}>ℹ️ 關於</h3>
           <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.9rem', opacity: 0.7 }}>
-            Louise 成長記錄 v1.0.0<br/>
+            Louise 成長記錄<br/>
             雲端同步：Firebase Firestore<br/>
             離線存儲：localStorage
           </p>

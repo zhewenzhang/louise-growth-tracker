@@ -4,6 +4,7 @@ import { Line } from 'react-chartjs-2';
 import { useApp } from '../context/AppContext.jsx';
 import { formatBabyAge } from '../utils/calculations';
 import { calcPercentile } from '../utils/whoPercentile';
+import { APP_VERSION } from '../utils/version';
 import ChartModal from './ChartModal';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
@@ -628,7 +629,7 @@ const Dashboard = ({ onNavigate }) => {
         </div>
       )}
 
-      {/* Firestore 狀態指示器 */}
+      {/* Firestore 狀態指示器 + 版本號 */}
       <div style={{ textAlign: 'center', padding: '16px', opacity: 0.5 }}>
         <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem' }}>
           {firestoreStatus === 'connecting' && '🔄 正在連接 Firestore...'}
@@ -649,6 +650,10 @@ const Dashboard = ({ onNavigate }) => {
               </button>
             </>
           )}
+        </span>
+        <br/>
+        <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', opacity: 0.6 }}>
+          v {APP_VERSION}
         </span>
       </div>
 
