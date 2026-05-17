@@ -219,7 +219,7 @@ const ChartModal = ({ metric, records, user, onClose }) => {
               y:{
                 min:yMin, max:yMax,
                 grid:{color:'rgba(0,0,0,0.04)'},
-                ticks:{ color:'#999',font:{family:'Inter',size:11},callback:v=>v+' '+unit, ...(yStep?{stepSize:yStep}:{}) },
+                ticks:{ color:'#999',font:{family:'Inter',size:11},callback:v=>Number(v.toFixed(2))+' '+unit, ...(yStep?{stepSize:yStep}:{}) },
               },
             },
           }} />

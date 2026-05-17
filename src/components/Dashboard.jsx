@@ -225,7 +225,7 @@ const Dashboard = ({ onNavigate }) => {
     },
     scales: {
       x: { grid: { display: false }, ticks: { color: '#999', font: { family: 'Patrick Hand', size: 11 } } },
-      y: { grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }, ticks: { color: '#999', font: { family: 'Inter', size: 11 }, callback: v => v + ' kg' } },
+      y: { grid: { color: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }, ticks: { color: '#999', font: { family: 'Inter', size: 11 }, callback: v => Number(v.toFixed(2)) + ' kg' } },
     },
   };
 
