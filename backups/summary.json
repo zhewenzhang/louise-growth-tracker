@@ -1,5 +1,20 @@
 [
   {
+    "date": "2026-05-20",
+    "exportDate": "2026-05-20T20:13:37.373Z",
+    "collections": {
+      "users": 1,
+      "growth_records": 75,
+      "vaccines": 18,
+      "milestones": 18,
+      "diary_entries": 1,
+      "medications": 1,
+      "doctor_visits": 2,
+      "blood_pressure": 28
+    },
+    "totalDocs": 144
+  },
+  {
     "date": "2026-05-19",
     "exportDate": "2026-05-19T19:51:00.564Z",
     "collections": {
