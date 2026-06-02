@@ -43,16 +43,25 @@ const Health = ({ initialTab } = {}) => {
   const alerts = useMemo(() => {
     const overdue = [];
     const upcoming = [];
+    const todayStr = new Date().toISOString().split('T')[0];
     for (const v of vaccineRecords) {
       if (v.completed) continue;
-      if (v.ageMonths !== undefined && ageMonths >= v.ageMonths) {
+      // 優先用 dueDate（實際預計日期）判斷逾期，沒有 dueDate 才退回用月齡
+      let isOverdue;
+      if (v.dueDate) {
+        isOverdue = v.dueDate < todayStr; // 預計日期已過才算逾期
+      } else {
+        isOverdue = v.ageMonths !== undefined && ageMonths >= v.ageMonths;
+      }
+      if (isOverdue) {
         overdue.push({ ...v, overdue: true });
       } else {
         upcoming.push({ ...v, upcoming: true });
       }
     }
-    // overdue 優先，然後按 ageMonths 排序 upcoming
-    upcoming.sort((a, b) => (a.ageMonths || 0) - (b.ageMonths || 0));
+    // upcoming 按預計日期排序（有 dueDate 用日期，否則用月齡換算）
+    const sortKey = (v) => v.dueDate || '9999-12-31';
+    upcoming.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
     return [...overdue, ...upcoming.slice(0, 2)];
   }, [vaccineRecords, ageMonths]);
 
