@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "PowerShell(git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git $env:USERPROFILE\\\\.claude\\\\skills\\\\gstack)",
+      "Skill(gstack)",
+      "Skill(gstack:*)"
+    ]
+  }
+}

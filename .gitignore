@@ -1,0 +1,33 @@
+# 依賴
+node_modules/
+
+# 構建輸出
+dist/
+
+# 環境變數（重要！）
+.env
+.env.local
+.env.*.local
+
+# 編輯器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 操作系統
+.DS_Store
+Thumbs.db
+
+# 日誌
+*.log
+npm-debug.log*
+
+# 備份文件
+*-backup-old/
+
+# gstack 相關（可選）
+.gstack/
+
+# Supabase 配置（已在 .env 中保護）
+# supabase-init.sql 可以保留作為參考
