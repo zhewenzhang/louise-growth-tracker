@@ -8,16 +8,16 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const API_KEY_STORAGE = 'louise_openrouter_key';
 const MODEL_STORAGE = 'louise_openrouter_model';
 
-export const DEFAULT_MODEL = 'google/gemini-flash-latest';
+export const DEFAULT_MODEL = 'google/gemini-3-flash-preview';
 
 // 可選模型清單（CP 值排序）
-// slug 需與 OpenRouter 上的實際 ID 一致
+// slug 已對照 OpenRouter /api/v1/models 確認存在且支援圖片輸入
 export const AVAILABLE_MODELS = [
-  { id: 'google/gemini-flash-latest', label: 'Gemini Flash 最新版（推薦·最穩定）' },
-  { id: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash（手寫最準）' },
-  { id: 'google/gemini-3.1-flash', label: 'Gemini 3.1 Flash' },
-  { id: 'google/gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite（省錢）' },
-  { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash（備選）' },
+  { id: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash（推薦·手寫最準）' },
+  { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash（穩定備選）' },
+  { id: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite（省錢）' },
+  { id: 'qwen/qwen3-vl-235b-a22b-instruct', label: 'Qwen3 VL 235B（開源·表格強）' },
+  { id: 'mistralai/mistral-small-3.2-24b-instruct', label: 'Mistral Small 3.2（最便宜）' },
 ];
 
 // ── API Key / Model 設定 ──
