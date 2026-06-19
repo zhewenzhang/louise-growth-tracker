@@ -25,7 +25,14 @@ export const getApiKey = () => localStorage.getItem(API_KEY_STORAGE) || '';
 export const setApiKey = (key) => localStorage.setItem(API_KEY_STORAGE, key.trim());
 export const hasApiKey = () => !!getApiKey();
 
-export const getModel = () => localStorage.getItem(MODEL_STORAGE) || DEFAULT_MODEL;
+export const getModel = () => {
+  const stored = localStorage.getItem(MODEL_STORAGE);
+  // 驗證：若存的模型不在有效清單內（例如舊版本存的失效 slug），退回預設
+  if (!stored || !AVAILABLE_MODELS.some(m => m.id === stored)) {
+    return DEFAULT_MODEL;
+  }
+  return stored;
+};
 export const setModel = (model) => localStorage.setItem(MODEL_STORAGE, model);
 
 // ── 識別 Prompt ──
