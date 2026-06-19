@@ -6,7 +6,7 @@ import { recognizeFeedingImage, hasApiKey, getModel } from '../lib/openrouter';
 // 照片識別批量匯入餵奶記錄
 // 流程：拍照/選圖 → AI 識別 → 確認頁面（可編輯）→ 批量上傳
 const PhotoImport = ({ onClose }) => {
-  const { importFeedingBatch } = useApp();
+  const { importFeedingBatch, growthRecords } = useApp();
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
@@ -41,7 +41,9 @@ const PhotoImport = ({ onClose }) => {
         setStep('select');
         return;
       }
-      setRecords(result);
+      // 標記每筆：是否與現有資料重複、是否與本批內部重複
+      const marked = markDuplicates(result);
+      setRecords(marked);
       setStep('confirm');
     } catch (err) {
       setError(err.message || '識別失敗');
@@ -49,8 +51,49 @@ const PhotoImport = ({ onClose }) => {
     }
   };
 
+  // 重複偵測：同一筆 = 日期 + 時間 + 母奶 + 配方 都相同
+  const recordKey = (r) =>
+    `${r.date}|${r.time || ''}|${Number(r.breastMilk) || 0}|${Number(r.formula) || 0}`;
+
+  const markDuplicates = (list) => {
+    // 現有 Firestore 餵奶記錄的 key 集合
+    const existingKeys = new Set(
+      (growthRecords || [])
+        .filter(g => g.type === 'feeding')
+        .map(g => recordKey(g))
+    );
+    const seenInBatch = new Set();
+    return list.map(r => {
+      const key = recordKey(r);
+      const dupExisting = existingKeys.has(key);      // 與雲端已存在的重複
+      const dupInBatch = seenInBatch.has(key);        // 與本批前面的重複
+      seenInBatch.add(key);
+      const isDup = dupExisting || dupInBatch;
+      return {
+        ...r,
+        duplicate: isDup,
+        dupReason: dupExisting ? '已存在' : dupInBatch ? '批內重複' : '',
+        selected: !isDup, // 重複的預設不勾選
+      };
+    });
+  };
+
   const updateRecord = (idx, field, value) => {
-    setRecords(prev => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+    setRecords(prev => {
+      const next = prev.map((r, i) => i === idx ? { ...r, [field]: value } : r);
+      // 編輯後重新評估該筆是否仍重複（與雲端比對）
+      const existingKeys = new Set(
+        (growthRecords || []).filter(g => g.type === 'feeding').map(g => recordKey(g))
+      );
+      const r = next[idx];
+      const dup = existingKeys.has(recordKey(r));
+      next[idx] = { ...r, duplicate: dup, dupReason: dup ? '已存在' : '', selected: dup ? r.selected : r.selected };
+      return next;
+    });
+  };
+
+  const toggleSelected = (idx) => {
+    setRecords(prev => prev.map((r, i) => i === idx ? { ...r, selected: !r.selected } : r));
   };
 
   const deleteRecord = (idx) => {
@@ -58,15 +101,17 @@ const PhotoImport = ({ onClose }) => {
   };
 
   const handleUpload = async () => {
-    // 過濾無效記錄
-    const valid = records.filter(r => r.date && (Number(r.breastMilk) > 0 || Number(r.formula) > 0));
+    // 只上傳「已勾選」且有效的記錄
+    const valid = records.filter(r => r.selected && r.date && (Number(r.breastMilk) > 0 || Number(r.formula) > 0));
     if (valid.length === 0) {
-      setError('沒有有效的記錄可上傳');
+      setError('沒有勾選任何要上傳的記錄');
       return;
     }
     try {
       setStep('uploading');
-      await importFeedingBatch(valid, {
+      // 去掉內部標記欄位再上傳
+      const clean = valid.map(({ duplicate, dupReason, selected, ...rest }) => rest);
+      await importFeedingBatch(clean, {
         imageDataURL: archiveImageURL,
         model: getModel(),
       });
@@ -78,7 +123,7 @@ const PhotoImport = ({ onClose }) => {
     }
   };
 
-  const totalMl = records.reduce((s, r) => s + (Number(r.breastMilk) || 0) + (Number(r.formula) || 0), 0);
+  const totalMl = records.reduce((s, r) => s + (Number(r.breastMilk) || 0) + (Number(r.formula) || 0), 0); // eslint-disable-line no-unused-vars
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}
@@ -150,26 +195,53 @@ const PhotoImport = ({ onClose }) => {
         )}
 
         {/* Step: 確認 */}
-        {step === 'confirm' && (
+        {step === 'confirm' && (() => {
+          const selectedCount = records.filter(r => r.selected).length;
+          const dupCount = records.filter(r => r.duplicate).length;
+          const selectedMl = records.filter(r => r.selected).reduce((s, r) => s + (Number(r.breastMilk) || 0) + (Number(r.formula) || 0), 0);
+          return (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, fontFamily: 'var(--font-body)', fontSize: '0.85rem' }}>
-              <span>共辨識 <strong>{records.length}</strong> 筆 · 合計 <strong>{totalMl}</strong> ml</span>
+              <span>辨識 <strong>{records.length}</strong> 筆 · 已選 <strong>{selectedCount}</strong> 筆 ({selectedMl} ml)</span>
               {previewURL && (
                 <button className="btn-sm" onClick={() => window.open(previewURL, '_blank')} style={{ fontSize: '0.7rem' }}>🔍 看原圖</button>
               )}
             </div>
+
+            {dupCount > 0 && (
+              <div style={{ background: '#fff8e1', border: '1.5px solid #f0a500', borderRadius: 'var(--wobbly-sm)', padding: '8px 10px', marginBottom: 10, fontFamily: 'var(--font-body)', fontSize: '0.78rem', color: '#e67e22' }}>
+                ⚠️ 偵測到 {dupCount} 筆可能重複（與已有記錄相同），已自動取消勾選。可手動勾選若確實要上傳。
+              </div>
+            )}
+
             <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.78rem', opacity: 0.6, marginBottom: 10 }}>
-              請核對下方資料，可直接修改數字或刪除錯誤列：
+              勾選要上傳的記錄，可直接修改數字：
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '40vh', overflow: 'auto', marginBottom: 14 }}>
               {records.map((r, idx) => (
-                <div key={idx} style={{ border: '1.5px solid var(--fg)', borderRadius: 'var(--wobbly-sm)', padding: 10, background: 'var(--bg)' }}>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                <div key={idx} style={{
+                  border: `1.5px solid ${r.duplicate ? '#f0a500' : 'var(--fg)'}`,
+                  borderRadius: 'var(--wobbly-sm)', padding: 10,
+                  background: r.selected ? 'var(--bg)' : '#f0f0f0',
+                  opacity: r.selected ? 1 : 0.6,
+                }}>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!r.selected}
+                      onChange={() => toggleSelected(idx)}
+                      style={{ width: 18, height: 18, flexShrink: 0, accentColor: 'var(--blue)' }}
+                    />
                     <input type="date" value={r.date} onChange={e => updateRecord(idx, 'date', e.target.value)} style={{ flex: 1.4, fontSize: '0.8rem', padding: '6px 8px' }} />
                     <input type="time" value={r.time} onChange={e => updateRecord(idx, 'time', e.target.value)} style={{ flex: 1, fontSize: '0.8rem', padding: '6px 8px' }} />
                     <button onClick={() => deleteRecord(idx)} className="btn-sm" style={{ color: 'var(--accent)', fontSize: '0.7rem', flexShrink: 0 }}>🗑️</button>
                   </div>
+                  {r.duplicate && (
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: '#e67e22', marginBottom: 4 }}>
+                      ⚠️ 疑似重複（{r.dupReason}）
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <label style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', flexShrink: 0 }}>🤱母奶</label>
                     <input type="number" min="0" max="500" value={r.breastMilk} onChange={e => updateRecord(idx, 'breastMilk', Number(e.target.value) || 0)} style={{ flex: 1, fontSize: '0.8rem', padding: '6px 8px' }} />
@@ -187,12 +259,13 @@ const PhotoImport = ({ onClose }) => {
               <button className="btn" style={{ flex: 1 }} onClick={() => { setStep('select'); setRecords([]); }}>
                 ← 重新選圖
               </button>
-              <button className="btn btn-blue" style={{ flex: 1.5 }} onClick={handleUpload}>
-                ✅ 批量上傳 {records.length} 筆
+              <button className="btn btn-blue" style={{ flex: 1.5 }} onClick={handleUpload} disabled={selectedCount === 0}>
+                ✅ 上傳 {selectedCount} 筆
               </button>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Step: 上傳中 */}
         {step === 'uploading' && (
