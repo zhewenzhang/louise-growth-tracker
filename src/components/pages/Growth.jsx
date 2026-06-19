@@ -2,6 +2,7 @@
 import { useApp } from '../../context/AppContext.jsx';
 import { genId } from '../../utils/id';
 import PhotoImport from '../PhotoImport';
+import BatchHistory from '../BatchHistory';
 
 const TABS = [
   { id: 'weight', label: '⚖️ 體重', unit: 'kg', step: '0.001', placeholder: '例如：3.256', showTime: false },
@@ -20,6 +21,7 @@ const Growth = () => {
   const [breastMilk, setBreastMilk] = useState('');
   const [formulaMilk, setFormulaMilk] = useState('');
   const [showPhotoImport, setShowPhotoImport] = useState(false);
+  const [showBatchHistory, setShowBatchHistory] = useState(false);
 
   const activeTabInfo = TABS.find(t => t.id === activeTab);
 
@@ -104,12 +106,18 @@ const Growth = () => {
 
       {/* 奶量 照片識別匯入按鈕 */}
       {activeTab === 'feeding' && (
-        <button className="btn w-full" onClick={() => setShowPhotoImport(true)} style={{ background: 'var(--blue)', color: '#fff', borderColor: 'var(--blue)' }}>
-          📷 拍照識別批量匯入
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn" onClick={() => setShowPhotoImport(true)} style={{ flex: 1.5, background: 'var(--blue)', color: '#fff', borderColor: 'var(--blue)' }}>
+            📷 拍照識別匯入
+          </button>
+          <button className="btn" onClick={() => setShowBatchHistory(true)} style={{ flex: 1 }}>
+            📋 匯入歷史
+          </button>
+        </div>
       )}
 
       {showPhotoImport && <PhotoImport onClose={() => setShowPhotoImport(false)} />}
+      {showBatchHistory && <BatchHistory onClose={() => setShowBatchHistory(false)} />}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="card">
