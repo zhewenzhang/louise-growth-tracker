@@ -1,0 +1,19 @@
+{
+  "name": "Louise 成長記錄",
+  "short_name": "Louise",
+  "description": "記錄寶寶成長的每一刻",
+  "start_url": "/louise-growth-tracker/",
+  "scope": "/louise-growth-tracker/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#fdfbf7",
+  "background_color": "#fdfbf7",
+  "icons": [
+    {
+      "src": "/louise-growth-tracker/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
