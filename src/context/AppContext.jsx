@@ -276,6 +276,14 @@ export const AppProvider = ({ children }) => {
     setGrowthRecords(prev => prev.filter(r => r.id !== id));
     deleteGrowthFromFirestore(id);
   };
+  const updateGrowthRecord = (id, updates) => {
+    setGrowthRecords(prev => {
+      const updated = prev.map(r => r.id === id ? { ...r, ...updates } : r);
+      const target = updated.find(r => r.id === id);
+      if (target) saveGrowthToFirestore(target);
+      return updated;
+    });
+  };
 
   // Vaccines
   const toggleVaccine = (id) => {
@@ -535,7 +543,7 @@ export const AppProvider = ({ children }) => {
   return (
     <AppContext.Provider value={{
       user, setUser: updateUser,
-      growthRecords, addGrowthRecord, deleteGrowthRecord,
+      growthRecords, addGrowthRecord, updateGrowthRecord, deleteGrowthRecord,
       vaccineRecords, toggleVaccine, addCustomVaccine, updateVaccineDate,
       milestones, addMilestone, deleteMilestone,
       diaryEntries, addDiaryEntry, deleteDiaryEntry,
