@@ -8,6 +8,7 @@ import { recognizeFeedingImage, hasApiKey, getModel } from '../lib/openrouter';
 const PhotoImport = ({ onClose }) => {
   const { importFeedingBatch } = useApp();
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   const [step, setStep] = useState('select'); // 'select' | 'recognizing' | 'confirm' | 'uploading' | 'done'
   const [error, setError] = useState('');
@@ -109,13 +110,25 @@ const PhotoImport = ({ onClose }) => {
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              onChange={handleFile}
+              style={{ display: 'none' }}
+            />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
               capture="environment"
               onChange={handleFile}
               style={{ display: 'none' }}
             />
-            <button className="btn w-full" onClick={() => fileInputRef.current?.click()}>
-              📷 拍照 / 選擇照片
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button className="btn w-full" onClick={() => cameraInputRef.current?.click()}>
+                📷 拍照
+              </button>
+              <button className="btn w-full" onClick={() => fileInputRef.current?.click()}>
+                🖼️ 從相冊選擇
+              </button>
+            </div>
             <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5, marginTop: 12 }}>
               💡 提示：照片越清晰、光線越足，辨識越準確
             </p>
