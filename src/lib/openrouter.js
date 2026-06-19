@@ -8,13 +8,16 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const API_KEY_STORAGE = 'louise_openrouter_key';
 const MODEL_STORAGE = 'louise_openrouter_model';
 
-export const DEFAULT_MODEL = 'google/gemini-3-flash';
+export const DEFAULT_MODEL = 'google/gemini-flash-latest';
 
 // 可選模型清單（CP 值排序）
+// slug 需與 OpenRouter 上的實際 ID 一致
 export const AVAILABLE_MODELS = [
-  { id: 'google/gemini-3-flash', label: 'Gemini 3 Flash（推薦·手寫最準）' },
+  { id: 'google/gemini-flash-latest', label: 'Gemini Flash 最新版（推薦·最穩定）' },
+  { id: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash（手寫最準）' },
+  { id: 'google/gemini-3.1-flash', label: 'Gemini 3.1 Flash' },
   { id: 'google/gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite（省錢）' },
-  { id: 'qwen/qwen3-vl-instruct', label: 'Qwen3 VL（開源備選）' },
+  { id: 'google/gemini-2.5-flash', label: 'Gemini 2.5 Flash（備選）' },
 ];
 
 // ── API Key / Model 設定 ──
@@ -90,6 +93,11 @@ export const recognizeFeedingImage = async (imageDataURL) => {
       const errJson = JSON.parse(errText);
       msg = errJson.error?.message || msg;
     } catch {}
+    // 常見錯誤給更明確的提示
+    if (res.status === 401) msg = 'API Key 無效，請檢查設定頁的 Key 是否正確';
+    else if (res.status === 402) msg = 'OpenRouter 餘額不足，請到 openrouter.ai 儲值';
+    else if (res.status === 404) msg = `找不到模型「${model}」，請在設定頁換一個模型`;
+    else if (res.status === 429) msg = '請求過於頻繁，請稍後再試';
     throw new Error(msg);
   }
 
