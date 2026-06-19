@@ -13,6 +13,7 @@ import {
   saveMedicationToFirestore, loadMedicationsFromFirestore, deleteMedicationFromFirestore,
   saveDoctorVisitToFirestore, loadDoctorVisitsFromFirestore, deleteDoctorVisitFromFirestore,
   subscribeToUser, subscribeToCollection,
+  saveBatchToFirestore, deleteBatchFromFirestore, subscribeToBatches, uploadBatchImage,
 } from '../services/firestoreService';
 
 const AppContext = createContext();
@@ -28,6 +29,7 @@ export const AppProvider = ({ children }) => {
   const [bpRecords, setBpRecords] = useLocalStorage('louise_blood_pressure', []);
   const [medications, setMedications] = useLocalStorage('louise_medications', []);
   const [doctorVisits, setDoctorVisits] = useLocalStorage('louise_doctor_visits', []);
+  const [feedingBatches, setFeedingBatches] = useLocalStorage('louise_feeding_batches', []);
   const [loaded, setLoaded] = useState(false);
   const [firestoreStatus, setFirestoreStatus] = useState('connecting'); // 'connecting' | 'connected' | 'empty' | 'error'
   const [writeError, setWriteError] = useState(null); // 寫入失敗時的最新錯誤
@@ -244,6 +246,11 @@ export const AppProvider = ({ children }) => {
           markLoaded();
         }, (a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00'))));
 
+        unsubscribers.push(subscribeToBatches((data) => {
+          setFeedingBatches(data);
+          localStorage.setItem('louise_feeding_batches', JSON.stringify(data));
+        }));
+
       } catch (e) {
         console.error('Firestore 訂閱錯誤:', e.code, e.message, e);
         setFirestoreStatus('error');
@@ -383,6 +390,70 @@ export const AppProvider = ({ children }) => {
     deleteDoctorVisitFromFirestore(id);
   };
 
+  // 照片批量匯入餵奶記錄
+  const importFeedingBatch = async (records, meta = {}) => {
+    const batchId = genId();
+    const recordIds = [];
+
+    // 1. 批量寫入餵奶記錄
+    const newRecords = records.map(r => {
+      const id = genId();
+      recordIds.push(id);
+      const bm = Number(r.breastMilk) || 0;
+      const fm = Number(r.formula) || 0;
+      return {
+        id,
+        date: r.date,
+        time: r.time || '',
+        type: 'feeding',
+        unit: 'ml',
+        breastMilk: bm,
+        formula: fm,
+        value: bm + fm,
+        note: r.note || '',
+        batchId,
+      };
+    });
+
+    setGrowthRecords(prev => [...prev, ...newRecords]);
+    newRecords.forEach(r => saveGrowthToFirestore(r));
+
+    // 2. 上傳原圖到 Storage（可選）
+    let imageUrl = '';
+    if (meta.imageDataURL) {
+      imageUrl = await uploadBatchImage(batchId, meta.imageDataURL);
+    }
+
+    // 3. 儲存批次記錄
+    const batch = {
+      id: batchId,
+      uploadedAt: new Date().toISOString(),
+      model: meta.model || '',
+      recordCount: newRecords.length,
+      recordIds,
+      imageUrl,
+      note: meta.note || '',
+    };
+    setFeedingBatches(prev => [batch, ...prev]);
+    await saveBatchToFirestore(batch);
+
+    return batch;
+  };
+
+  // 撤銷整批匯入（刪除該批所有餵奶記錄 + 批次記錄）
+  const deleteFeedingBatch = (batchId) => {
+    const batch = feedingBatches.find(b => b.id === batchId);
+    if (!batch) return;
+    // 刪除該批所有記錄
+    (batch.recordIds || []).forEach(id => {
+      deleteGrowthFromFirestore(id);
+    });
+    setGrowthRecords(prev => prev.filter(r => !(batch.recordIds || []).includes(r.id)));
+    // 刪除批次記錄
+    setFeedingBatches(prev => prev.filter(b => b.id !== batchId));
+    deleteBatchFromFirestore(batchId);
+  };
+
   // Export / Import
   const exportData = () => {
     const data = { user, growthRecords, vaccineRecords, milestones, diaryEntries, bpRecords, medications, doctorVisits, exportDate: new Date().toISOString() };
@@ -471,6 +542,7 @@ export const AppProvider = ({ children }) => {
       bpRecords, addBpRecord, deleteBpRecord,
       medications, addMedication, updateMedication, deleteMedication,
       doctorVisits, addDoctorVisit, updateDoctorVisit, deleteDoctorVisit,
+      feedingBatches, importFeedingBatch, deleteFeedingBatch,
       exportData, importData,
       firestoreStatus,
       writeError,

@@ -4,6 +4,7 @@ import { getCurrentUid } from '../../lib/firebase';
 import { hasPinSet, removePin } from '../../utils/pinLock';
 import { getTheme, setTheme } from '../../utils/theme';
 import { APP_VERSION, BUILD_TIME, formatBuildTime, forceUpdate, checkForUpdate } from '../../utils/version';
+import { getApiKey, setApiKey, getModel, setModel, AVAILABLE_MODELS } from '../../lib/openrouter';
 import PinSetup from '../PinSetup';
 
 const Settings = () => {
@@ -25,6 +26,16 @@ const Settings = () => {
   const [theme, setThemeState] = useState(getTheme());
   const [updateStatus, setUpdateStatus] = useState(''); // 'checking' | 'latest' | 'available' | ''
   const [updating, setUpdating] = useState(false);
+  const [aiKey, setAiKey] = useState(getApiKey());
+  const [aiModel, setAiModel] = useState(getModel());
+  const [aiSaveStatus, setAiSaveStatus] = useState('');
+
+  const handleSaveAiSettings = () => {
+    setApiKey(aiKey);
+    setModel(aiModel);
+    setAiSaveStatus('✅ 已儲存');
+    setTimeout(() => setAiSaveStatus(''), 2000);
+  };
 
   const handleCheckUpdate = async () => {
     setUpdateStatus('checking');
@@ -293,6 +304,45 @@ service cloud.firestore {
             </div>
             {pinStatus && (
               <p style={{ textAlign: 'center', fontFamily: 'var(--font-body)', color: 'var(--green)' }}>{pinStatus}</p>
+            )}
+          </div>
+        </div>
+
+        {/* AI 識別設定 */}
+        <div className="card">
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 12 }}>🤖 AI 識別設定</h3>
+          <div className="space-y-3">
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.7, lineHeight: 1.6 }}>
+              用於「📷 拍照識別」功能。需填入 OpenRouter API Key（存在本機，不會上傳）。
+            </p>
+            <div>
+              <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: '0.9rem' }}>
+                OpenRouter API Key
+              </label>
+              <input
+                type="password"
+                value={aiKey}
+                onChange={e => setAiKey(e.target.value)}
+                placeholder="sk-or-v1-..."
+                style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}
+              />
+              <p style={{ fontSize: '0.72rem', opacity: 0.5, marginTop: 4, fontFamily: 'var(--font-body)' }}>
+                到 <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)', textDecoration: 'underline' }}>openrouter.ai/keys</a> 取得
+              </p>
+            </div>
+            <div>
+              <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: '0.9rem' }}>
+                識別模型
+              </label>
+              <select value={aiModel} onChange={e => setAiModel(e.target.value)}>
+                {AVAILABLE_MODELS.map(m => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+            <button onClick={handleSaveAiSettings} className="btn w-full">💾 儲存 AI 設定</button>
+            {aiSaveStatus && (
+              <p style={{ textAlign: 'center', fontFamily: 'var(--font-body)', color: 'var(--green)' }}>{aiSaveStatus}</p>
             )}
           </div>
         </div>

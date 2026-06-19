@@ -314,3 +314,67 @@ export const subscribeToCollection = (colName, callback, sortFn) => {
     console.warn(`🔥 subscribe ${colName} error:`, err.message);
   });
 };
+
+
+// ════════════════════════════════════════════════════════════════
+//  照片批量匯入（Feeding Batches）
+//  記錄每次 AI 識別批量上傳，方便日後倒查、整批撤銷
+// ════════════════════════════════════════════════════════════════
+import { storage } from '../lib/firebase';
+import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
+
+/**
+ * 上傳原始照片到 Firebase Storage
+ * @param {string} batchId 批次 ID
+ * @param {string} dataURL 圖片 base64
+ * @returns {Promise<string>} 下載 URL（失敗回傳空字串）
+ */
+export const uploadBatchImage = async (batchId, dataURL) => {
+  try {
+    const path = `feeding_photos/${batchId}.jpg`;
+    const ref = storageRef(storage, path);
+    await uploadString(ref, dataURL, 'data_url');
+    return await getDownloadURL(ref);
+  } catch (e) {
+    notifyWriteError('upload batch image', e);
+    return '';
+  }
+};
+
+/**
+ * 儲存批次記錄
+ */
+export const saveBatchToFirestore = async (batch) => {
+  try {
+    await setDoc(doc(db, 'feeding_batches', batch.id), {
+      userId: USER_ID,
+      uploadedAt: batch.uploadedAt,
+      model: batch.model || '',
+      recordCount: batch.recordCount || 0,
+      recordIds: batch.recordIds || [],
+      imageUrl: batch.imageUrl || '',
+      note: batch.note || '',
+    });
+  } catch (e) { notifyWriteError('save batch', e); }
+};
+
+export const loadBatchesFromFirestore = async () => {
+  try {
+    const snap = await getDocs(collection(db, 'feeding_batches'));
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    data.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+    return data;
+  } catch (e) { console.warn('Firestore load batches:', e.message); return null; }
+};
+
+export const deleteBatchFromFirestore = async (id) => {
+  try { await deleteDoc(doc(db, 'feeding_batches', id)); } catch (e) { notifyWriteError('delete batch', e); }
+};
+
+export const subscribeToBatches = (callback) => {
+  return onSnapshot(collection(db, 'feeding_batches'), (snap) => {
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    data.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+    callback(data);
+  }, (err) => console.warn('🔥 subscribe batches error:', err.message));
+};
