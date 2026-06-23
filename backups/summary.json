@@ -1,5 +1,20 @@
 [
   {
+    "date": "2026-06-23",
+    "exportDate": "2026-06-23T20:02:34.102Z",
+    "collections": {
+      "users": 1,
+      "growth_records": 244,
+      "vaccines": 20,
+      "milestones": 26,
+      "diary_entries": 1,
+      "medications": 1,
+      "doctor_visits": 4,
+      "blood_pressure": 60
+    },
+    "totalDocs": 357
+  },
+  {
     "date": "2026-06-22",
     "exportDate": "2026-06-22T20:46:54.339Z",
     "collections": {
@@ -433,20 +448,5 @@
       "blood_pressure": 38
     },
     "totalDocs": 179
-  },
-  {
-    "date": "2026-05-24",
-    "exportDate": "2026-05-24T19:15:54.076Z",
-    "collections": {
-      "users": 1,
-      "growth_records": 94,
-      "vaccines": 18,
-      "milestones": 19,
-      "diary_entries": 1,
-      "medications": 1,
-      "doctor_visits": 3,
-      "blood_pressure": 36
-    },
-    "totalDocs": 173
   }
 ]
