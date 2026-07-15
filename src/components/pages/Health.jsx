@@ -8,10 +8,13 @@ import { Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 const Health = ({ initialTab } = {}) => {
-  const { vaccineRecords, toggleVaccine, addCustomVaccine, updateVaccineDate, bpRecords, addBpRecord, deleteBpRecord, medications, addMedication, updateMedication, deleteMedication, doctorVisits, addDoctorVisit, updateDoctorVisit, deleteDoctorVisit, user } = useApp();
+  const { vaccineRecords, toggleVaccine, addCustomVaccine, updateVaccine, updateVaccineDate, deleteVaccine, bpRecords, addBpRecord, deleteBpRecord, medications, addMedication, updateMedication, deleteMedication, doctorVisits, addDoctorVisit, updateDoctorVisit, deleteDoctorVisit, user } = useApp();
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [editDate, setEditDate] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editDose, setEditDose] = useState('');
+  const [vaccineSubTab, setVaccineSubTab] = useState('todo'); // 'todo' | 'done'
   const [customForm, setCustomForm] = useState({ name: '', dose: '1劑', ageMonths: '', dueDate: '' });
   const [bpDate, setBpDate] = useState(new Date().toISOString().split('T')[0]);
   const [bpTime, setBpTime] = useState(new Date().toTimeString().slice(0, 5));
@@ -62,7 +65,23 @@ const Health = ({ initialTab } = {}) => {
     // upcoming 按預計日期排序（有 dueDate 用日期，否則用月齡換算）
     const sortKey = (v) => v.dueDate || '9999-12-31';
     upcoming.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
-    return [...overdue, ...upcoming.slice(0, 2)];
+    
+    // 篩選未來 45 天內（涵蓋下個月底）的即將到來疫苗
+    const limitDateStr = (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 45); // 未來 45 天
+      return d.toISOString().split('T')[0];
+    })();
+    
+    const upcomingFiltered = upcoming.filter(v => {
+      if (!v.dueDate) return true;
+      return v.dueDate <= limitDateStr;
+    });
+
+    // 確保最少顯示 5 條即將到來的疫苗 (如果 upcoming 總量夠的話)
+    const displayUpcoming = upcomingFiltered.length >= 5 ? upcomingFiltered : upcoming.slice(0, 5);
+
+    return [...overdue, ...displayUpcoming];
   }, [vaccineRecords, ageMonths]);
 
   const handleAddCustom = (e) => {
@@ -171,77 +190,136 @@ const Health = ({ initialTab } = {}) => {
               </form>
             )}
 
-            {/* 未完成疫苗 */}
-            {incomplete.length > 0 && (
-              <div className="space-y-2" style={{ marginBottom: '16px' }}>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: '8px' }}>
-                  📋 待接種 ({incomplete.length})
-                </h3>
-                {incomplete.map((vaccine, idx) => (
-                  <div key={vaccine.id} className="sticky-note animate-in"
-                    style={{ transform: `rotate(${(idx % 5 - 2) * 1.5}deg)` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ flex: 1 }}>
-                        <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem' }}>
-                          {vaccine.name} {vaccine.isCustom && <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>自訂</span>}
-                        </h4>
-                        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7 }}>{vaccine.dose}</p>
-                      </div>
-                    </div>
+            {/* 子分頁切換：待接種 vs 已完成 */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+              <button type="button" onClick={() => setVaccineSubTab('todo')} className={`btn-sm ${vaccineSubTab === 'todo' ? 'btn-blue' : ''}`} style={{ flex: 1, borderRadius: '6px', padding: '6px' }}>
+                📋 待接種 ({incomplete.length})
+              </button>
+              <button type="button" onClick={() => setVaccineSubTab('done')} className={`btn-sm ${vaccineSubTab === 'done' ? 'btn-blue' : ''}`} style={{ flex: 1, borderRadius: '6px', padding: '6px' }}>
+                ✅ 已完成 ({completed.length})
+              </button>
+            </div>
 
-                    {/* 日期編輯區 */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
-                      {editId === vaccine.id ? (
-                        <>
-                          <input type="date" value={editDate}
-                            onChange={e => setEditDate(e.target.value)}
-                            style={{ fontSize: '0.8rem', padding: '4px 8px', flex: 1 }} />
-                          <button className="btn-sm" onClick={() => {
-                            updateVaccineDate(vaccine.id, editDate);
-                            setEditId(null);
-                          }}>✓</button>
-                          <button className="btn-sm" onClick={() => setEditId(null)}>✕</button>
-                        </>
-                      ) : (
-                        <>
-                          <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.6, flex: 1 }}>
-                            📅 {vaccine.dueDate ? formatDueDate(vaccine.dueDate) : vaccine.recommendedAge}
-                          </p>
-                          <button className="btn-sm" onClick={() => {
-                            setEditId(vaccine.id);
-                            setEditDate(vaccine.dueDate || '');
-                          }} style={{ fontSize: '0.7rem' }}>✏️</button>
-                        </>
+            {/* 待接種分頁 */}
+            {vaccineSubTab === 'todo' && (
+              <div className="space-y-2" style={{ marginBottom: '16px' }}>
+                {incomplete.length === 0 ? (
+                  <div className="sticky-note" style={{ textAlign: 'center', opacity: 0.6, fontSize: '0.9rem' }}>
+                    🎉 太棒了，目前沒有待接種的疫苗！
+                  </div>
+                ) : (
+                  incomplete.map((vaccine, idx) => (
+                    <div key={vaccine.id} className="sticky-note animate-in"
+                      style={{ transform: `rotate(${(idx % 5 - 2) * 1.5}deg)` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ flex: 1 }}>
+                          {editId === vaccine.id ? (
+                            <div className="space-y-2 w-full" style={{ marginBottom: '6px' }}>
+                              <input type="text" value={editName}
+                                onChange={e => setEditName(e.target.value)}
+                                placeholder="疫苗名稱"
+                                style={{ fontSize: '0.9rem', padding: '4px 8px', width: '100%', borderRadius: '4px', border: '1px solid var(--border)' }} />
+                              <input type="text" value={editDose}
+                                onChange={e => setEditDose(e.target.value)}
+                                placeholder="劑次"
+                                style={{ fontSize: '0.85rem', padding: '4px 8px', width: '100%', borderRadius: '4px', border: '1px solid var(--border)' }} />
+                            </div>
+                          ) : (
+                            <>
+                              <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {vaccine.name}
+                                {vaccine.isCustom && <span style={{ fontSize: '0.7rem', color: 'var(--blue)', background: '#e0f2fe', padding: '1px 6px', borderRadius: '4px' }}>自訂</span>}
+                              </h4>
+                              <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7 }}>{vaccine.dose}</p>
+                            </>
+                          )}
+                        </div>
+                        {vaccine.isCustom && editId !== vaccine.id && (
+                          <button onClick={() => {
+                            if (window.confirm(`確定要刪除自訂疫苗「${vaccine.name}」嗎？`)) {
+                              deleteVaccine(vaccine.id);
+                            }
+                          }} className="btn-sm" style={{ padding: '2px 6px', background: 'transparent', color: '#ef4444', fontSize: '0.9rem' }} title="刪除疫苗">
+                            🗑️
+                          </button>
+                        )}
+                      </div>
+
+                      {/* 編輯區/日期區 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                        {editId === vaccine.id ? (
+                          <>
+                            <input type="date" value={editDate}
+                              onChange={e => setEditDate(e.target.value)}
+                              style={{ fontSize: '0.8rem', padding: '4px 8px', flex: 1, borderRadius: '4px', border: '1px solid var(--border)' }} />
+                            <button className="btn-sm" onClick={() => {
+                              updateVaccine(vaccine.id, { name: editName, dose: editDose, dueDate: editDate });
+                              setEditId(null);
+                            }}>✓</button>
+                            <button className="btn-sm" onClick={() => setEditId(null)}>✕</button>
+                          </>
+                        ) : (
+                          <>
+                            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.6, flex: 1 }}>
+                              📅 {vaccine.dueDate ? formatDueDate(vaccine.dueDate) : vaccine.recommendedAge}
+                            </p>
+                            <button className="btn-sm" onClick={() => {
+                              setEditId(vaccine.id);
+                              setEditName(vaccine.name || '');
+                              setEditDose(vaccine.dose || '');
+                              setEditDate(vaccine.dueDate || '');
+                            }} style={{ fontSize: '0.7rem' }} title="編輯疫苗資訊">✏️</button>
+                          </>
+                        )}
+                      </div>
+
+                      {editId !== vaccine.id && (
+                        <button onClick={() => toggleVaccine(vaccine.id)} className="btn-sm" style={{ marginTop: '8px' }}>
+                          ✅ 標記完成
+                        </button>
                       )}
                     </div>
-
-                    <button onClick={() => toggleVaccine(vaccine.id)} className="btn-sm" style={{ marginTop: '6px' }}>
-                      ✅ 標記完成
-                    </button>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             )}
 
-            {/* 已完成疫苗 */}
-            {completed.length > 0 && (
+            {/* 已完成分頁 */}
+            {vaccineSubTab === 'done' && (
               <div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', marginBottom: '8px', opacity: 0.6 }}>
-                  ✅ 已完成 ({completed.length})
-                </h3>
-                <div className="space-y-1">
-                  {completed.map(v => (
-                    <div key={v.id} style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '8px 12px', opacity: 0.5,
-                      fontFamily: 'var(--font-body)', fontSize: '0.9rem',
-                    }}>
-                      <span>{v.name} · {v.dose}</span>
-                      <span>{v.date || '已完成'}</span>
-                      <button onClick={() => toggleVaccine(v.id)} className="btn-sm">↩️</button>
-                    </div>
-                  ))}
-                </div>
+                {completed.length === 0 ? (
+                  <div className="sticky-note" style={{ textAlign: 'center', opacity: 0.6, fontSize: '0.9rem' }}>
+                    目前沒有已完成的疫苗記錄。
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {completed.map(v => (
+                      <div key={v.id} style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '8px 12px', opacity: 0.7,
+                        background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px',
+                        fontFamily: 'var(--font-body)', fontSize: '0.9rem', marginBottom: '6px'
+                      }}>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: '500' }}>{v.name} · {v.dose}</span>
+                          <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>📅 接種日: {v.date || '已完成'}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <button onClick={() => toggleVaccine(v.id)} className="btn-sm" title="設為未完成">↩️</button>
+                          {v.isCustom && (
+                            <button onClick={() => {
+                              if (window.confirm(`確定要刪除自訂疫苗「${v.name}」嗎？`)) {
+                                deleteVaccine(v.id);
+                              }
+                            }} className="btn-sm" style={{ padding: '4px 6px', background: 'transparent', color: '#ef4444' }} title="刪除疫苗">
+                              🗑️
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>

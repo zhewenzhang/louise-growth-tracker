@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { DEFAULT_VACCINES, calcVaccineDates } from '../data/vaccines';
 import { ensureAuth } from '../lib/firebase';
@@ -6,7 +6,7 @@ import { genId } from '../utils/id';
 import {
   saveUserToFirestore, loadUserFromFirestore,
   saveGrowthToFirestore, loadGrowthFromFirestore, deleteGrowthFromFirestore,
-  saveVaccinesToFirestore, loadVaccinesFromFirestore,
+  saveVaccinesToFirestore, loadVaccinesFromFirestore, deleteVaccineFromFirestore,
   saveMilestoneToFirestore, loadMilestonesFromFirestore, deleteMilestoneFromFirestore,
   saveDiaryToFirestore, loadDiaryFromFirestore, deleteDiaryFromFirestore,
   saveBloodPressureToFirestore, loadBloodPressureFromFirestore, deleteBloodPressureFromFirestore,
@@ -327,6 +327,26 @@ export const AppProvider = ({ children }) => {
     });
   };
 
+  // 更新自訂疫苗（名稱、劑次等）
+  const updateVaccine = (id, fields) => {
+    setVaccineRecords(prev => {
+      const updated = prev.map(v => v.id === id ? { ...v, ...fields } : v);
+      localStorage.setItem('louise_vaccines', JSON.stringify(updated));
+      saveVaccinesToFirestore(updated);
+      return updated;
+    });
+  };
+
+  // 刪除疫苗
+  const deleteVaccine = (id) => {
+    setVaccineRecords(prev => {
+      const updated = prev.filter(v => v.id !== id);
+      localStorage.setItem('louise_vaccines', JSON.stringify(updated));
+      return updated;
+    });
+    deleteVaccineFromFirestore(id);
+  };
+
   // Milestones
   const addMilestone = (r) => {
     const record = { ...r, id: r.id || genId() };
@@ -544,7 +564,7 @@ export const AppProvider = ({ children }) => {
     <AppContext.Provider value={{
       user, setUser: updateUser,
       growthRecords, addGrowthRecord, updateGrowthRecord, deleteGrowthRecord,
-      vaccineRecords, toggleVaccine, addCustomVaccine, updateVaccineDate,
+      vaccineRecords, toggleVaccine, addCustomVaccine, updateVaccine, updateVaccineDate, deleteVaccine,
       milestones, addMilestone, deleteMilestone,
       diaryEntries, addDiaryEntry, deleteDiaryEntry,
       bpRecords, addBpRecord, deleteBpRecord,

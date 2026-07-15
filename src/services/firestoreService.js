@@ -126,6 +126,10 @@ export const loadVaccinesFromFirestore = async () => {
   }
 };
 
+export const deleteVaccineFromFirestore = async (id) => {
+  try { await deleteDoc(doc(db, 'vaccines', id)); } catch (e) { notifyWriteError('delete vaccine', e); }
+};
+
 // ── Milestones ──
 export const saveMilestoneToFirestore = async (record) => {
   try {
