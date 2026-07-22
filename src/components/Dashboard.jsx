@@ -444,30 +444,98 @@ const Dashboard = ({ onNavigate }) => {
         </div>
       )}
 
-      {/* ── 重要提醒區：下一針疫苗 + 即將回診 ── */}
+      {/* ── 重要提醒區：優化版關懷提醒與貼士 ── */}
       {(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const todayStr = today.toISOString().split('T')[0];
 
-        // 下一針疫苗（最近一個未完成且有 dueDate 的）
-        const nextVaccine = [...(vaccineRecords || [])]
-          .filter(v => !v.completed && v.dueDate)
-          .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))[0] || null;
+        // 1. 篩選逾期疫苗 (dueDate < today 且未完成)
+        const overdueVaccines = [...(vaccineRecords || [])]
+          .filter(v => !v.completed && v.dueDate && new Date(v.dueDate) < today)
+          .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
-        // 即將回診（最近 3 筆）
+        // 2. 篩選 14 天內即將到期疫苗
+        const upcomingVaccines = [...(vaccineRecords || [])]
+          .filter(v => !v.completed && v.dueDate && new Date(v.dueDate) >= today && new Date(v.dueDate) <= new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000))
+          .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+        // 3. 篩選今日與即將回診 (今日看診 + 7天內回診)
+        const todayVisits = (doctorVisits || []).filter(v => {
+          const targetDate = v.followUpDate || (v.status === 'scheduled' ? v.date : null);
+          if (!targetDate) return false;
+          const d = new Date(targetDate);
+          d.setHours(0, 0, 0, 0);
+          return d.getTime() === today.getTime();
+        });
+
         const upcomingVisits = (doctorVisits || [])
           .filter(v => {
             const targetDate = v.followUpDate || (v.status === 'scheduled' ? v.date : null);
             if (!targetDate) return false;
             const d = new Date(targetDate);
             d.setHours(0, 0, 0, 0);
-            return d >= today;
+            return d > today && d <= new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
           })
           .sort((a, b) => new Date(a.followUpDate || a.date) - new Date(b.followUpDate || b.date))
-          .slice(0, 3);
+          .slice(0, 2);
 
-        if (!nextVaccine && upcomingVisits.length === 0) return null;
+        // 4. 生長記錄量測提醒 (大於 14 天)
+        const lastGrowthDate = growthRecords && growthRecords.length > 0
+          ? new Date(Math.max(...growthRecords.map(r => new Date(r.date))))
+          : null;
+        const daysSinceLastGrowth = lastGrowthDate
+          ? Math.round((today - lastGrowthDate) / (1000 * 60 * 60 * 24))
+          : null;
+        const showGrowthAlert = daysSinceLastGrowth === null || daysSinceLastGrowth > 14;
+
+        // 5. 分月齡小貼士
+        const getDevelopmentTip = (months) => {
+          if (months < 0) {
+            return {
+              title: "👶 矯正未足月護理",
+              content: "寶寶為早產兒，目前矯正月齡尚未足月。此階段以保暖、建立穩定的餵養節律、充足睡眠為主，請多觀察寶寶的精神與呼吸狀態。"
+            };
+          }
+          if (months < 1) {
+            return {
+              title: "👶 新生兒適應期",
+              content: "Louise 目前還在適應新世界。多注意抱姿、按需餵養。滿月記得施打B肝第2劑疫苗，並可開始做黑白圖卡視覺刺激。"
+            };
+          } else if (months < 2) {
+            return {
+              title: "👀 視覺與眼神交流",
+              content: "寶寶開始能注視人臉並追隨移動物體。可以多與她對視、說話。滿2個月有五合一及肺炎鏈球菌疫苗喔！"
+            };
+          } else if (months < 4) {
+            return {
+              title: "💪 練習抬頭 (Tummy Time)",
+              content: "3個月左右是訓練頸部肌肉的黃金期。每天清醒時可練習趴撐數分鐘，有助於大動作發展。滿4個月記得打第2劑疫苗。"
+            };
+          } else if (months < 6) {
+            return {
+              title: "🍼 準備副食品",
+              content: "4-6個月寶寶唾液分泌變多、對大人的食物有興趣。如果脖子夠挺、可扶坐，可以開始嘗試少量副食品泥囉！"
+            };
+          } else if (months < 9) {
+            return {
+              title: "🧘 學習坐立與抓握",
+              content: "6個月後寶寶開始練習坐，手部抓握也更精準。可以準備手指食物 (finger foods)。同時請注意居家環境防護，防跌落。"
+            };
+          } else if (months < 12) {
+            return {
+              title: "🧗 爬行與探索世界",
+              content: "9個月左右是爬行活躍期。多陪伴她探索，並注意把地上的細小物品、插座封好。此時寶寶也開始發音，多與她交流。"
+            };
+          } else {
+            return {
+              title: "🎉 滿週歲的探索家",
+              content: "1歲後可以逐漸以固體食物為主食。多帶寶寶到戶外活動、曬太陽，並注意1歲後的常規疫苗（如MMR、水痘疫苗等）。"
+            };
+          }
+        };
+
+        const correctedMonths = correctedAgeInfo?.correctedMonths ?? 0;
+        const devTip = getDevelopmentTip(correctedMonths);
 
         // 日期標籤 helper
         const dayTag = (dateStr) => {
@@ -482,31 +550,121 @@ const Dashboard = ({ onNavigate }) => {
         };
 
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 2 }}>📌 重要提醒</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 2 }}>📌 重要提醒與關懷提示</h3>
 
-            {/* 下一針疫苗 */}
-            {nextVaccine && (() => {
-              const tag = dayTag(nextVaccine.dueDate);
-              const isUrgent = new Date(nextVaccine.dueDate) <= today;
+            {/* 1. 逾期疫苗 */}
+            {overdueVaccines.map((v, index) => {
+              const tag = dayTag(v.dueDate);
               return (
                 <button
+                  key={v.id}
                   onClick={() => onNavigate?.('health', { initialTab: 'vaccine' })}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12,
-                    background: isUrgent ? '#ffebee' : 'var(--card-bg)',
-                    border: `2px solid ${isUrgent ? '#ff4d4d' : 'var(--fg)'}`,
+                    background: '#ffebee',
+                    border: '2px solid #ff4d4d',
                     borderRadius: 'var(--wobbly-sm)',
                     boxShadow: 'var(--shadow-sm)',
                     padding: '12px 14px',
                     cursor: 'pointer', textAlign: 'left', width: '100%',
+                    transform: `rotate(${(index % 2 === 0 ? -0.5 : 0.5)}deg)`
+                  }}
+                >
+                  <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>⚠️</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: '#c62828', fontWeight: 600 }}>
+                        {v.name} ({v.dose})
+                      </span>
+                      <span style={{
+                        fontFamily: 'var(--font-body)', fontSize: '0.7rem',
+                        background: '#ffebee', color: '#ff4d4d',
+                        border: '1.5px solid #ff4d4d',
+                        borderRadius: 'var(--wobbly-sm)', padding: '1px 7px', fontWeight: 600,
+                      }}>已逾期 {tag.text.replace(' 前', '')}</span>
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.7, marginTop: 2 }}>
+                      建議月齡：{v.recommendedAge}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5, marginTop: 2 }}>
+                      📅 預計日期：{new Date(v.dueDate).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '1rem', opacity: 0.4, flexShrink: 0 }}>›</span>
+                </button>
+              );
+            })}
+
+            {/* 2. 今日看診 */}
+            {todayVisits.map(v => (
+              <button
+                key={v.id}
+                onClick={() => onNavigate?.('health', { initialTab: 'visit' })}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  background: '#fff8e1',
+                  border: '2px solid #e67e22',
+                  borderRadius: 'var(--wobbly-sm)',
+                  boxShadow: 'var(--shadow-sm)',
+                  padding: '12px 14px',
+                  cursor: 'pointer', textAlign: 'left', width: '100%',
+                  transform: 'rotate(-0.5deg)'
+                }}
+              >
+                <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>🏥</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--fg)', fontWeight: 600 }}>
+                      今天就診：{v.hospital || '回診'}
+                    </span>
+                    <span style={{
+                      fontFamily: 'var(--font-body)', fontSize: '0.7rem',
+                      background: '#ffebee', color: '#ff4d4d',
+                      border: '1.5px solid #ff4d4d',
+                      borderRadius: 'var(--wobbly-sm)', padding: '1px 7px', fontWeight: 600,
+                    }}>今日</span>
+                  </div>
+                  {(v.department || v.location || v.visitNumber) && (
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.8, marginTop: 2 }}>
+                      {v.department && ` department: ${v.department}`}
+                      {v.location && `　📍 ${v.location}`}
+                      {v.visitNumber && `　🔢 診號 ${v.visitNumber}`}
+                    </div>
+                  )}
+                  {v.time && (
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.6, marginTop: 2 }}>
+                      ⏰ 時間：{v.time} {v.doctor && `· ${v.doctor} 醫師`}
+                    </div>
+                  )}
+                </div>
+                <span style={{ fontSize: '1rem', opacity: 0.4, flexShrink: 0 }}>›</span>
+              </button>
+            ))}
+
+            {/* 3. 即將接種疫苗 */}
+            {upcomingVaccines.slice(0, 2).map((v, index) => {
+              const tag = dayTag(v.dueDate);
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => onNavigate?.('health', { initialTab: 'vaccine' })}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    background: 'var(--card-bg)',
+                    border: '2px solid var(--fg)',
+                    borderRadius: 'var(--wobbly-sm)',
+                    boxShadow: 'var(--shadow-sm)',
+                    padding: '12px 14px',
+                    cursor: 'pointer', textAlign: 'left', width: '100%',
+                    transform: `rotate(${(index % 2 === 0 ? 0.5 : -0.5)}deg)`
                   }}
                 >
                   <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>💉</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: 'var(--fg)' }}>
-                        {nextVaccine.name}
+                        {v.name} ({v.dose})
                       </span>
                       <span style={{
                         fontFamily: 'var(--font-body)', fontSize: '0.7rem',
@@ -516,20 +674,19 @@ const Dashboard = ({ onNavigate }) => {
                       }}>{tag.text}</span>
                     </div>
                     <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.7, marginTop: 2 }}>
-                      {nextVaccine.dose}
-                      {nextVaccine.recommendedAge && ` · ${nextVaccine.recommendedAge}`}
+                      建議月齡：{v.recommendedAge}
                     </div>
                     <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5, marginTop: 2 }}>
-                      📅 {new Date(nextVaccine.dueDate).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      📅 預計日期：{new Date(v.dueDate).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
                     </div>
                   </div>
                   <span style={{ fontSize: '1rem', opacity: 0.4, flexShrink: 0 }}>›</span>
                 </button>
               );
-            })()}
+            })}
 
-            {/* 即將回診 */}
-            {upcomingVisits.map(v => {
+            {/* 4. 即將回診 */}
+            {upcomingVisits.map((v, index) => {
               const targetDate = v.followUpDate || v.date;
               const tag = dayTag(targetDate);
               return (
@@ -538,12 +695,13 @@ const Dashboard = ({ onNavigate }) => {
                   onClick={() => onNavigate?.('health', { initialTab: 'visit' })}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12,
-                    background: tag.color === '#ff4d4d' ? '#ffebee' : 'var(--card-bg)',
-                    border: `2px solid ${tag.color === '#ff4d4d' ? '#ff4d4d' : tag.color === '#e67e22' ? '#f0a500' : 'var(--fg)'}`,
+                    background: 'var(--card-bg)',
+                    border: `2px solid ${tag.color === '#e67e22' ? '#f0a500' : 'var(--fg)'}`,
                     borderRadius: 'var(--wobbly-sm)',
                     boxShadow: 'var(--shadow-sm)',
                     padding: '12px 14px',
                     cursor: 'pointer', textAlign: 'left', width: '100%',
+                    transform: `rotate(${(index % 2 === 0 ? -0.5 : 0.5)}deg)`
                   }}
                 >
                   <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>🏥</span>
@@ -559,20 +717,13 @@ const Dashboard = ({ onNavigate }) => {
                         borderRadius: 'var(--wobbly-sm)', padding: '1px 7px', fontWeight: 600,
                       }}>{tag.text}</span>
                     </div>
-                    {/* 診別 + 地點 + 就診號 */}
                     {(v.department || v.location || v.visitNumber) && (
                       <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.75, marginTop: 2 }}>
                         {v.department && `🏷️ ${v.department}`}
                         {v.location && `　📍 ${v.location}`}
-                        {v.visitNumber && `　🔢 ${v.visitNumber}`}
+                        {v.visitNumber && `　🔢 診號 ${v.visitNumber}`}
                       </div>
                     )}
-                    {v.reason && (
-                      <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.65, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {v.reason}
-                      </div>
-                    )}
-                    {/* 日期 + 時間 + 醫師 */}
                     <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5, marginTop: 2 }}>
                       📅 {new Date(targetDate).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
                       {v.time && ` ⏰ ${v.time}`}
@@ -583,6 +734,118 @@ const Dashboard = ({ onNavigate }) => {
                 </button>
               );
             })}
+
+            {/* 5. 生長指標量測提醒 */}
+            {showGrowthAlert && (
+              <button
+                onClick={() => onNavigate?.('growth')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  background: '#e8f5e9',
+                  border: '2px solid #2d7d46',
+                  borderRadius: 'var(--wobbly-sm)',
+                  boxShadow: 'var(--shadow-sm)',
+                  padding: '12px 14px',
+                  cursor: 'pointer', textAlign: 'left', width: '100%',
+                  transform: 'rotate(0.5deg)'
+                }}
+              >
+                <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>⚖️</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: '#2d7d46', fontWeight: 600 }}>
+                    生長指標量測提醒
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.8, marginTop: 2, color: 'var(--fg)' }}>
+                    {daysSinceLastGrowth === null 
+                      ? "目前尚未記錄生長數據，請記錄寶寶的第一筆身高、體重吧！" 
+                      : `已經有 ${daysSinceLastGrowth} 天沒有測量寶寶的身高體重囉！建議每兩週記錄一次以更新百分位。`}
+                  </div>
+                </div>
+                <span style={{ fontSize: '1rem', opacity: 0.4, flexShrink: 0 }}>›</span>
+              </button>
+            )}
+
+            {/* 6. 每日奶量貼心提示 */}
+            {feedingAssessment && (() => {
+              const { status, projectedTotal, mlPerKg, projectedMlPerKg, minTarget, maxTarget } = feedingAssessment;
+              
+              let icon = "🍼";
+              let title = "奶量攝取提醒";
+              let content = "";
+              let bgColor = "var(--card-bg)";
+              let borderColor = "var(--fg)";
+              let titleColor = "var(--fg)";
+              
+              if (status === 'good') {
+                icon = "🌟";
+                title = "今日奶量達標";
+                content = `目前今日已餵奶量良好，預估全天奶量 ${projectedTotal}ml (${projectedMlPerKg} ml/kg) 符合標準範圍！繼續保持。`;
+                bgColor = '#e8f5e9';
+                borderColor = '#2d7d46';
+                titleColor = '#2d7d46';
+              } else if (status === 'ok') {
+                icon = "🍼";
+                title = "今日奶量尚可";
+                content = `目前預估全天奶量 ${projectedTotal}ml (${projectedMlPerKg} ml/kg)，已達到最低標，可視寶寶需求適度增減。`;
+                bgColor = '#fff8e1';
+                borderColor = '#e67e22';
+                titleColor = '#e67e22';
+              } else if (status === 'high') {
+                icon = "⚠️";
+                title = "今日奶量偏多";
+                content = `預估今日總量 ${projectedTotal}ml (${projectedMlPerKg} ml/kg) 偏高。若寶寶精神良好無溢奶，通常是猛長期現象，請順應餵養。`;
+                bgColor = '#fff3e0';
+                borderColor = '#e65100';
+                titleColor = '#e65100';
+              } else {
+                icon = "⚠️";
+                title = "今日奶量偏低";
+                content = `預估今日奶量 ${projectedTotal}ml 偏低 (標準為 ${minTarget}-${maxTarget} ml/kg)。建議觀察寶寶的濕尿布次數（每日應 5-6 片以上）。`;
+                bgColor = '#ffebee';
+                borderColor = '#ff4d4d';
+                titleColor = '#c62828';
+              }
+              
+              return (
+                <div
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    background: bgColor,
+                    border: `2px solid ${borderColor}`,
+                    borderRadius: 'var(--wobbly-sm)',
+                    boxShadow: 'var(--shadow-sm)',
+                    padding: '12px 14px',
+                    transform: 'rotate(-0.5deg)'
+                  }}
+                >
+                  <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>{icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', color: titleColor, fontWeight: 600 }}>
+                      {title}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.8, marginTop: 2, color: 'var(--fg)' }}>
+                      {content}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 7. 寶寶分月齡育兒貼士 (便利貼風格) */}
+            <div className="sticky-note" style={{ transform: 'rotate(-1deg)', marginTop: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ fontSize: '2rem' }}>{devTip.title.split(' ')[0]}</span>
+                <div>
+                  <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--fg)', fontWeight: 600 }}>
+                    {devTip.title}
+                  </h4>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.92rem', marginTop: 2, lineHeight: 1.4, opacity: 0.8 }}>
+                    {devTip.content}
+                  </p>
+                </div>
+              </div>
+            </div>
+
           </div>
         );
       })()}
