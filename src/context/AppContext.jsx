@@ -202,8 +202,8 @@ export const AppProvider = ({ children }) => {
 
         const updateCombinedGrowth = () => {
           const combinedMap = new Map();
-          currentGrowth.forEach(r => combinedMap.set(r.id, r));
-          currentFeedings.forEach(r => combinedMap.set(r.id, r));
+          (Array.isArray(currentGrowth) ? currentGrowth : []).forEach(r => r && combinedMap.set(r.id, r));
+          (Array.isArray(currentFeedings) ? currentFeedings : []).forEach(r => r && combinedMap.set(r.id, r));
           const sorted = Array.from(combinedMap.values());
           sorted.sort((a, b) => new Date(a.date) - new Date(b.date));
           setGrowthRecords(sorted);
@@ -212,70 +212,74 @@ export const AppProvider = ({ children }) => {
         };
 
         unsubscribers.push(subscribeToCollection('growth_records', (data) => {
-          currentGrowth = data;
+          currentGrowth = Array.isArray(data) ? data : [];
           updateCombinedGrowth();
         }));
 
         unsubscribers.push(subscribeToFeedings((data) => {
-          currentFeedings = data;
+          currentFeedings = Array.isArray(data) ? data : [];
           updateCombinedGrowth();
         }));
 
         unsubscribers.push(subscribeToCollection('vaccines', (data) => {
-          // 不再強制重算 dueDate（避免覆蓋手動編輯）
-          // dueDate 已經在 saveVaccinesToFirestore 時保存到雲端，直接用即可
-          // 只在缺失時補算（保險起見）
+          const safeData = Array.isArray(data) ? data : [];
           const currentBirthDate = remoteUser?.birthDate
             || JSON.parse(localStorage.getItem('louise_user') || '{}').birthDate
             || '2026-04-26';
-          const filled = data.map(v => {
-            if (v.dueDate) return v; // 已有 dueDate（不論手動還是計算過的）
-            // 缺 dueDate 才計算
+          const filled = safeData.map(v => {
+            if (!v) return null;
+            if (v.dueDate) return v;
             const birth = new Date(currentBirthDate);
             const due = new Date(birth);
             due.setMonth(birth.getMonth() + (v.ageMonths || 0));
             return { ...v, dueDate: due.toISOString().split('T')[0] };
-          });
+          }).filter(Boolean);
           setVaccineRecords(filled);
           localStorage.setItem('louise_vaccines', JSON.stringify(filled));
           markLoaded();
-        }, (a, b) => (a.ageMonths || 0) - (b.ageMonths || 0)));
+        }, (a, b) => ((a?.ageMonths) || 0) - ((b?.ageMonths) || 0)));
 
         unsubscribers.push(subscribeToCollection('milestones', (data) => {
-          setMilestones(data);
-          localStorage.setItem('louise_milestones', JSON.stringify(data));
+          const safeData = Array.isArray(data) ? data : [];
+          setMilestones(safeData);
+          localStorage.setItem('louise_milestones', JSON.stringify(safeData));
           markLoaded();
-        }, (a, b) => new Date(b.date) - new Date(a.date)));
+        }, (a, b) => new Date(b?.date || 0) - new Date(a?.date || 0)));
 
         unsubscribers.push(subscribeToCollection('diary_entries', (data) => {
-          setDiaryEntries(data);
-          localStorage.setItem('louise_diary', JSON.stringify(data));
+          const safeData = Array.isArray(data) ? data : [];
+          setDiaryEntries(safeData);
+          localStorage.setItem('louise_diary', JSON.stringify(safeData));
           markLoaded();
-        }, (a, b) => new Date(b.date) - new Date(a.date)));
+        }, (a, b) => new Date(b?.date || 0) - new Date(a?.date || 0)));
 
         unsubscribers.push(subscribeToCollection('blood_pressure', (data) => {
-          setBpRecords(data);
-          localStorage.setItem('louise_blood_pressure', JSON.stringify(data));
+          const safeData = Array.isArray(data) ? data : [];
+          setBpRecords(safeData);
+          localStorage.setItem('louise_blood_pressure', JSON.stringify(safeData));
           markLoaded();
-        }, (a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00'))));
+        }, (a, b) => new Date(a?.date + 'T' + (a?.time || '00:00')) - new Date(b?.date + 'T' + (b?.time || '00:00'))));
 
         unsubscribers.push(subscribeToCollection('temperature_records', (data) => {
-          setTempRecords(data);
-          localStorage.setItem('louise_temperature', JSON.stringify(data));
+          const safeData = Array.isArray(data) ? data : [];
+          setTempRecords(safeData);
+          localStorage.setItem('louise_temperature', JSON.stringify(safeData));
           markLoaded();
-        }, (a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00'))));
+        }, (a, b) => new Date(b?.date + 'T' + (b?.time || '00:00')) - new Date(a?.date + 'T' + (a?.time || '00:00'))));
 
         unsubscribers.push(subscribeToCollection('sleep_records', (data) => {
-          setSleepRecords(data);
-          localStorage.setItem('louise_sleep', JSON.stringify(data));
+          const safeData = Array.isArray(data) ? data : [];
+          setSleepRecords(safeData);
+          localStorage.setItem('louise_sleep', JSON.stringify(safeData));
           markLoaded();
-        }, (a, b) => new Date(b.date + 'T' + (b.startTime || '00:00')) - new Date(a.date + 'T' + (a.startTime || '00:00'))));
+        }, (a, b) => new Date(b?.date + 'T' + (b?.startTime || '00:00')) - new Date(a?.date + 'T' + (a?.startTime || '00:00'))));
 
         unsubscribers.push(subscribeToCollection('diaper_records', (data) => {
-          setDiaperRecords(data);
-          localStorage.setItem('louise_diaper', JSON.stringify(data));
+          const safeData = Array.isArray(data) ? data : [];
+          setDiaperRecords(safeData);
+          localStorage.setItem('louise_diaper', JSON.stringify(safeData));
           markLoaded();
-        }, (a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00'))));
+        }, (a, b) => new Date(b?.date + 'T' + (b?.time || '00:00')) - new Date(a?.date + 'T' + (a?.time || '00:00'))));
 
         unsubscribers.push(subscribeToCollection('medications', (data) => {
           setMedications(data);

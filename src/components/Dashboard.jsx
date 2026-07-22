@@ -8,7 +8,11 @@ import GrowthPercentileWidget from './dashboard/GrowthPercentileWidget';
 import ChartModal from './ChartModal';
 
 const Dashboard = ({ onNavigate }) => {
-  const { user, milestones, vaccineRecords } = useApp();
+  const ctx = useApp();
+  const user = ctx?.user;
+  const milestones = Array.isArray(ctx?.milestones) ? ctx.milestones : [];
+  const vaccineRecords = Array.isArray(ctx?.vaccineRecords) ? ctx.vaccineRecords : [];
+
   const [chartMetric, setChartMetric] = useState(null);
   const [chartRecords, setChartRecords] = useState([]);
   const [tick, setTick] = useState(0);
@@ -23,7 +27,7 @@ const Dashboard = ({ onNavigate }) => {
   }, [user?.birthDate, user?.dueDate, tick]);
 
   const latestMilestone = milestones.length > 0 ? milestones[0] : null;
-  const vaccineCompleted = vaccineRecords.filter(v => v.completed).length;
+  const vaccineCompleted = vaccineRecords.filter(v => v && v.completed).length;
 
   const handleOpenChart = (metric, records) => {
     if (!records || records.length < 2) {

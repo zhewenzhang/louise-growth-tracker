@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 
 const DayTimeline = () => {
-  const { growthRecords, sleepRecords, diaperRecords, tempRecords } = useApp();
+  const ctx = useApp();
+  const growthRecords = Array.isArray(ctx?.growthRecords) ? ctx.growthRecords : [];
+  const sleepRecords = Array.isArray(ctx?.sleepRecords) ? ctx.sleepRecords : [];
+  const diaperRecords = Array.isArray(ctx?.diaperRecords) ? ctx.diaperRecords : [];
+  const tempRecords = Array.isArray(ctx?.tempRecords) ? ctx.tempRecords : [];
+
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   // 切換日期
@@ -26,15 +31,15 @@ const DayTimeline = () => {
   const isToday = selectedDate === todayStr;
 
   // 1. 篩選當日數據
-  const dayFeedings = growthRecords.filter(r => r.type === 'feeding' && r.date === selectedDate);
-  const daySleeps = sleepRecords.filter(r => r.date === selectedDate);
-  const dayDiapers = diaperRecords.filter(r => r.date === selectedDate);
-  const dayTemps = tempRecords.filter(r => r.date === selectedDate);
+  const dayFeedings = growthRecords.filter(r => r && r.type === 'feeding' && r.date === selectedDate);
+  const daySleeps = sleepRecords.filter(r => r && r.date === selectedDate);
+  const dayDiapers = diaperRecords.filter(r => r && r.date === selectedDate);
+  const dayTemps = tempRecords.filter(r => r && r.date === selectedDate);
 
   // 輔助：時間字串 "HH:MM" 轉 24h 分鐘數 (0 ~ 1440)
   const timeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
-    const [h, m] = timeStr.split(':').map(Number);
+    const [h, m] = String(timeStr).split(':').map(Number);
     return (h || 0) * 60 + (m || 0);
   };
 
@@ -67,7 +72,6 @@ const DayTimeline = () => {
         {/* 背景時間軌道 */}
         <div style={{
           height: '36px',
-          background: 'linear-[#1e293b, #0f172a]',
           backgroundColor: 'var(--card-bg)',
           border: '2px solid var(--fg)',
           borderRadius: 'var(--wobbly-sm)',
@@ -76,22 +80,24 @@ const DayTimeline = () => {
           display: 'flex',
         }}>
           {/* 夜間 00-06 */}
-          <div style={{ flex: 6, background: 'rgba(30, 41, 59, 0.08)', borderRight: '1px stroke var(--fg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', opacity: 0.5 }}>🌙 夜間</div>
+          <div style={{ flex: 6, background: 'rgba(30, 41, 59, 0.08)', borderRight: '1px solid var(--fg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', opacity: 0.5 }}>🌙 夜間</div>
           {/* 白天 06-18 */}
-          <div style={{ flex: 12, background: 'rgba(251, 191, 36, 0.08)', borderRight: '1px stroke var(--fg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', opacity: 0.5 }}>☀️ 白天</div>
+          <div style={{ flex: 12, background: 'rgba(251, 191, 36, 0.08)', borderRight: '1px solid var(--fg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', opacity: 0.5 }}>☀️ 白天</div>
           {/* 晚間 18-24 */}
           <div style={{ flex: 6, background: 'rgba(30, 41, 59, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', opacity: 0.5 }}>🌙 晚間</div>
 
           {/* 🟦 睡眠色塊渲染 */}
           {daySleeps.map((s, idx) => {
+            if (!s) return null;
             const startPct = timeToPercent(s.startTime);
             const endPct = timeToPercent(s.endTime);
             const widthPct = endPct >= startPct ? (endPct - startPct) : (100 - startPct + endPct);
+            const dur = Number(s.durationMinutes) || 0;
 
             return (
               <div
                 key={s.id || idx}
-                title={`睡眠: ${s.startTime} ~ ${s.endTime} (${(s.durationMinutes / 60).toFixed(1)}h)`}
+                title={`睡眠: ${s.startTime || ''} ~ ${s.endTime || ''} (${(dur / 60).toFixed(1)}h)`}
                 style={{
                   position: 'absolute',
                   left: `${startPct}%`,
@@ -112,18 +118,19 @@ const DayTimeline = () => {
                   whiteSpace: 'nowrap',
                 }}
               >
-                😴 {(s.durationMinutes / 60).toFixed(1)}h
+                😴 {(dur / 60).toFixed(1)}h
               </div>
             );
           })}
 
           {/* 🍼 奶量打點 */}
           {dayFeedings.map((f, idx) => {
+            if (!f) return null;
             const pct = timeToPercent(f.time || '12:00');
             return (
               <div
                 key={f.id || idx}
-                title={`餵奶: ${f.time} (${f.value}ml)`}
+                title={`餵奶: ${f.time || ''} (${f.value || 0}ml)`}
                 style={{
                   position: 'absolute',
                   left: `${pct}%`,
@@ -149,12 +156,13 @@ const DayTimeline = () => {
 
           {/* 💩/💦 尿布打點 */}
           {dayDiapers.map((d, idx) => {
+            if (!d) return null;
             const pct = timeToPercent(d.time || '12:00');
             const icon = d.type === 'wet' ? '💦' : '💩';
             return (
               <div
                 key={d.id || idx}
-                title={`尿布: ${d.time} (${d.type})`}
+                title={`尿布: ${d.time || ''} (${d.type || ''})`}
                 style={{
                   position: 'absolute',
                   left: `${pct}%`,
@@ -171,12 +179,13 @@ const DayTimeline = () => {
 
           {/* 🌡️ 體溫打點 */}
           {dayTemps.map((t, idx) => {
+            if (!t) return null;
             const pct = timeToPercent(t.time || '12:00');
-            const isFever = (t.refTemperature || t.temperature) >= 37.5;
+            const isFever = (t.refTemperature || t.temperature || 0) >= 37.5;
             return (
               <div
                 key={t.id || idx}
-                title={`體溫: ${t.time} (${t.temperature}°C)`}
+                title={`體溫: ${t.time || ''} (${t.temperature || 0}°C)`}
                 style={{
                   position: 'absolute',
                   left: `${pct}%`,
@@ -205,8 +214,8 @@ const DayTimeline = () => {
 
       {/* 當日作息事件清單圖例 / 摘要 */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '0.82rem', background: 'var(--bg)', padding: '8px 12px', borderRadius: 'var(--wobbly-sm)' }}>
-        <div>😴 總睡眠: <strong>{(daySleeps.reduce((sum, s) => sum + (s.durationMinutes || 0), 0) / 60).toFixed(1)}h</strong> ({daySleeps.length} 次)</div>
-        <div>🍼 總奶量: <strong>{dayFeedings.reduce((sum, f) => sum + (f.value || 0), 0)}ml</strong> ({dayFeedings.length} 次)</div>
+        <div>😴 總睡眠: <strong>{(daySleeps.reduce((sum, s) => sum + (s?.durationMinutes || 0), 0) / 60).toFixed(1)}h</strong> ({daySleeps.length} 次)</div>
+        <div>🍼 總奶量: <strong>{dayFeedings.reduce((sum, f) => sum + (f?.value || 0), 0)}ml</strong> ({dayFeedings.length} 次)</div>
         <div>💩 尿布/便便: <strong>{dayDiapers.length} 次</strong></div>
         {dayTemps.length > 0 && <div>🌡️ 體溫: <strong>{dayTemps.length} 次</strong></div>}
       </div>

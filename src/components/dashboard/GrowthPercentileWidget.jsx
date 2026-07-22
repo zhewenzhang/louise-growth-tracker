@@ -3,18 +3,20 @@ import { useApp } from '../../context/AppContext.jsx';
 import { calcPercentile } from '../../utils/whoPercentile';
 
 const GrowthPercentileWidget = ({ onOpenChart }) => {
-  const { growthRecords, user } = useApp();
+  const ctx = useApp();
+  const growthRecords = Array.isArray(ctx?.growthRecords) ? ctx.growthRecords : [];
+  const user = ctx?.user;
 
   const weightRecords = useMemo(() =>
-    growthRecords.filter(r => r.type === 'weight').sort((a, b) => new Date(a.date) - new Date(b.date)),
+    growthRecords.filter(r => r && r.type === 'weight').sort((a, b) => new Date(a.date) - new Date(b.date)),
     [growthRecords]
   );
   const heightRecords = useMemo(() =>
-    growthRecords.filter(r => r.type === 'height').sort((a, b) => new Date(a.date) - new Date(b.date)),
+    growthRecords.filter(r => r && r.type === 'height').sort((a, b) => new Date(a.date) - new Date(b.date)),
     [growthRecords]
   );
   const headRecords = useMemo(() =>
-    growthRecords.filter(r => r.type === 'headCircumference').sort((a, b) => new Date(a.date) - new Date(b.date)),
+    growthRecords.filter(r => r && r.type === 'headCircumference').sort((a, b) => new Date(a.date) - new Date(b.date)),
     [growthRecords]
   );
 

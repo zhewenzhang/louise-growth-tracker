@@ -15,11 +15,17 @@ const TABS = [
 ];
 
 const Growth = () => {
-  const {
-    growthRecords, addGrowthRecord, deleteGrowthRecord,
-    sleepRecords, addSleepRecord, deleteSleepRecord,
-    diaperRecords, addDiaperRecord, deleteDiaperRecord,
-  } = useApp();
+  const ctx = useApp();
+  const growthRecords = Array.isArray(ctx?.growthRecords) ? ctx.growthRecords : [];
+  const sleepRecords = Array.isArray(ctx?.sleepRecords) ? ctx.sleepRecords : [];
+  const diaperRecords = Array.isArray(ctx?.diaperRecords) ? ctx.diaperRecords : [];
+
+  const addGrowthRecord = ctx?.addGrowthRecord;
+  const deleteGrowthRecord = ctx?.deleteGrowthRecord;
+  const addSleepRecord = ctx?.addSleepRecord;
+  const deleteSleepRecord = ctx?.deleteSleepRecord;
+  const addDiaperRecord = ctx?.addDiaperRecord;
+  const deleteDiaperRecord = ctx?.deleteDiaperRecord;
 
   const [activeTab, setActiveTab] = useState('weight');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -42,7 +48,7 @@ const Growth = () => {
   const [poopTexture, setPoopTexture] = useState('糊狀');
   const [diaperNote, setDiaperNote] = useState('');
 
-  const activeTabInfo = TABS.find(t => t.id === activeTab);
+  const activeTabInfo = TABS.find(t => t.id === activeTab) || TABS[0];
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -51,12 +57,12 @@ const Growth = () => {
     if (activeTab === 'sleep') {
       const [sh, sm] = startTime.split(':').map(Number);
       const [eh, em] = endTime.split(':').map(Number);
-      let startM = sh * 60 + sm;
-      let endM = eh * 60 + em;
+      let startM = (sh || 0) * 60 + (sm || 0);
+      let endM = (eh || 0) * 60 + (em || 0);
       if (endM <= startM) endM += 24 * 60; // 跨夜
       const durationMinutes = endM - startM;
 
-      addSleepRecord({
+      addSleepRecord?.({
         date,
         startTime,
         endTime,
@@ -69,7 +75,7 @@ const Growth = () => {
     }
 
     if (activeTab === 'diaper') {
-      addDiaperRecord({
+      addDiaperRecord?.({
         date,
         time,
         type: diaperType,
@@ -104,13 +110,13 @@ const Growth = () => {
       record.value = parseFloat(value);
     }
 
-    addGrowthRecord(record);
+    addGrowthRecord?.(record);
     setValue('');
     setBreastMilk('');
     setFormulaMilk('');
   };
 
-  const records = growthRecords.filter(r => r.type === activeTab);
+  const records = growthRecords.filter(r => r && r.type === activeTab);
   const sortedRecords = [...records].sort((a, b) => {
     if (a.date === b.date && a.time && b.time) return b.time.localeCompare(a.time);
     return new Date(b.date) - new Date(a.date);
@@ -118,7 +124,7 @@ const Growth = () => {
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayFeedingStats = growthRecords
-    .filter(r => r.type === 'feeding' && r.date === todayStr)
+    .filter(r => r && r.type === 'feeding' && r.date === todayStr)
     .reduce((stats, r) => {
       stats.breastMilk += (r.breastMilk || 0);
       stats.formula += (r.formula || 0);
@@ -312,23 +318,27 @@ const Growth = () => {
               <div className="card text-center opacity-60">尚無睡眠記錄</div>
             ) : (
               <div className="space-y-2">
-                {sleepRecords.map(r => (
-                  <div key={r.id} className="card p-3 flex justify-between items-center">
-                    <div>
-                      <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
-                        🌙 {(r.durationMinutes / 60).toFixed(1)} 小時
-                      </span>
-                      <span style={{ fontSize: '0.85rem', marginLeft: 8, opacity: 0.8 }}>
-                        ({r.startTime} ~ {r.endTime})
-                      </span>
-                      <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
-                        📅 {r.date} · {r.quality === 'good' ? '😊 熟睡' : r.quality === 'normal' ? '😐 一般' : '😫 哭鬧'}
-                        {r.note && ` · ${r.note}`}
-                      </p>
+                {sleepRecords.map(r => {
+                  if (!r) return null;
+                  const dur = Number(r.durationMinutes) || 0;
+                  return (
+                    <div key={r.id} className="card p-3 flex justify-between items-center">
+                      <div>
+                        <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
+                          🌙 {(dur / 60).toFixed(1)} 小時
+                        </span>
+                        <span style={{ fontSize: '0.85rem', marginLeft: 8, opacity: 0.8 }}>
+                          ({r.startTime || ''} ~ {r.endTime || ''})
+                        </span>
+                        <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+                          📅 {r.date || ''} · {r.quality === 'good' ? '😊 熟睡' : r.quality === 'normal' ? '😐 一般' : '😫 哭鬧'}
+                          {r.note && ` · ${r.note}`}
+                        </p>
+                      </div>
+                      <button onClick={() => deleteSleepRecord?.(r.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
                     </div>
-                    <button onClick={() => deleteSleepRecord(r.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -342,21 +352,24 @@ const Growth = () => {
               <div className="card text-center opacity-60">尚無尿布記錄</div>
             ) : (
               <div className="space-y-2">
-                {diaperRecords.map(r => (
-                  <div key={r.id} className="card p-3 flex justify-between items-center">
-                    <div>
-                      <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600 }}>
-                        {r.type === 'wet' ? '💦 尿尿' : r.type === 'poop' ? '💩 便便' : '💦+💩 都有'}
-                      </span>
-                      {r.poopColor && <span style={{ fontSize: '0.85rem', marginLeft: 8, opacity: 0.8 }}>{r.poopColor} ({r.poopTexture})</span>}
-                      <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
-                        📅 {r.date} {r.time}
-                        {r.note && ` · ${r.note}`}
-                      </p>
+                {diaperRecords.map(r => {
+                  if (!r) return null;
+                  return (
+                    <div key={r.id} className="card p-3 flex justify-between items-center">
+                      <div>
+                        <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600 }}>
+                          {r.type === 'wet' ? '💦 尿尿' : r.type === 'poop' ? '💩 便便' : '💦+💩 都有'}
+                        </span>
+                        {r.poopColor && <span style={{ fontSize: '0.85rem', marginLeft: 8, opacity: 0.8 }}>{r.poopColor} ({r.poopTexture})</span>}
+                        <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+                          📅 {r.date || ''} {r.time || ''}
+                          {r.note && ` · ${r.note}`}
+                        </p>
+                      </div>
+                      <button onClick={() => deleteDiaperRecord?.(r.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
                     </div>
-                    <button onClick={() => deleteDiaperRecord(r.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -373,46 +386,49 @@ const Growth = () => {
               </div>
             ) : (
               <div className="space-y-2">
-                {sortedRecords.map(record => (
-                  <div key={record.id} className="card p-3 flex justify-between items-center animate-in">
-                    <div>
-                      {record.type === 'feeding' ? (() => {
-                        const bm = Number(record.breastMilk) || 0;
-                        const fm = Number(record.formula) || 0;
-                        const total = Number(record.value) || 0;
-                        const hasDetail = bm > 0 || fm > 0;
-                        return (
+                {sortedRecords.map(record => {
+                  if (!record) return null;
+                  return (
+                    <div key={record.id} className="card p-3 flex justify-between items-center animate-in">
+                      <div>
+                        {record.type === 'feeding' ? (() => {
+                          const bm = Number(record.breastMilk) || 0;
+                          const fm = Number(record.formula) || 0;
+                          const total = Number(record.value) || 0;
+                          const hasDetail = bm > 0 || fm > 0;
+                          return (
+                            <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
+                              {hasDetail ? (
+                                <>
+                                  {bm > 0 && `🤱${bm}`}
+                                  {bm > 0 && fm > 0 && ' + '}
+                                  {fm > 0 && `🍼${fm}`}
+                                  {(bm + fm !== total) && (
+                                    <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> = {total} ml</span>
+                                  )}
+                                  {(bm + fm === total) && (
+                                    <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> ml</span>
+                                  )}
+                                </>
+                              ) : (
+                                <>🍼 {total} ml</>
+                              )}
+                            </span>
+                          );
+                        })() : (
                           <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
-                            {hasDetail ? (
-                              <>
-                                {bm > 0 && `🤱${bm}`}
-                                {bm > 0 && fm > 0 && ' + '}
-                                {fm > 0 && `🍼${fm}`}
-                                {(bm + fm !== total) && (
-                                  <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> = {total} ml</span>
-                                )}
-                                {(bm + fm === total) && (
-                                  <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> ml</span>
-                                )}
-                              </>
-                            ) : (
-                              <>🍼 {total} ml</>
-                            )}
+                            {record.value} {record.unit}
                           </span>
-                        );
-                      })() : (
-                        <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
-                          {record.value} {record.unit}
-                        </span>
-                      )}
-                      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.6 }}>
-                        {record.date}
-                        {record.time && ` ${record.time}`}
-                      </p>
+                        )}
+                        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.6 }}>
+                          {record.date}
+                          {record.time && ` ${record.time}`}
+                        </p>
+                      </div>
+                      <button onClick={() => deleteGrowthRecord?.(record.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
                     </div>
-                    <button onClick={() => deleteGrowthRecord(record.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

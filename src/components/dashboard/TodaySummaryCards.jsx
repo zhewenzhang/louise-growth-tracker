@@ -2,30 +2,34 @@ import React from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 
 const TodaySummaryCards = ({ onNavigate }) => {
-  const { growthRecords, tempRecords, sleepRecords, diaperRecords, user } = useApp();
+  const ctx = useApp();
+  const growthRecords = Array.isArray(ctx?.growthRecords) ? ctx.growthRecords : [];
+  const tempRecords = Array.isArray(ctx?.tempRecords) ? ctx.tempRecords : [];
+  const sleepRecords = Array.isArray(ctx?.sleepRecords) ? ctx.sleepRecords : [];
+  const diaperRecords = Array.isArray(ctx?.diaperRecords) ? ctx.diaperRecords : [];
 
   const todayStr = new Date().toISOString().split('T')[0];
 
   // 今日奶量
-  const feedingRecords = growthRecords.filter(r => r.type === 'feeding' && r.date === todayStr);
+  const feedingRecords = growthRecords.filter(r => r && r.type === 'feeding' && r.date === todayStr);
   const todayFeedingStats = {
-    breastMilk: feedingRecords.reduce((s, r) => s + (r.breastMilk || 0), 0),
-    formula: feedingRecords.reduce((s, r) => s + (r.formula || 0), 0),
-    total: feedingRecords.reduce((s, r) => s + (r.value || 0), 0),
+    breastMilk: feedingRecords.reduce((s, r) => s + (r?.breastMilk || 0), 0),
+    formula: feedingRecords.reduce((s, r) => s + (r?.formula || 0), 0),
+    total: feedingRecords.reduce((s, r) => s + (r?.value || 0), 0),
     count: feedingRecords.length,
   };
 
   // 今日最新體溫
-  const todayTemps = tempRecords.filter(r => r.date === todayStr);
+  const todayTemps = tempRecords.filter(r => r && r.date === todayStr);
   const latestTemp = todayTemps.length > 0 ? todayTemps[0] : (tempRecords.length > 0 ? tempRecords[0] : null);
   const isFever = latestTemp && (latestTemp.refTemperature || latestTemp.temperature) >= 37.5;
 
   // 今日睡眠
-  const todaySleeps = sleepRecords.filter(r => r.date === todayStr);
-  const totalSleepMinutes = todaySleeps.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+  const todaySleeps = sleepRecords.filter(r => r && r.date === todayStr);
+  const totalSleepMinutes = todaySleeps.reduce((sum, s) => sum + (s?.durationMinutes || 0), 0);
 
   // 今日尿布
-  const todayDiapers = diaperRecords.filter(r => r.date === todayStr);
+  const todayDiapers = diaperRecords.filter(r => r && r.date === todayStr);
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -69,7 +73,7 @@ const TodaySummaryCards = ({ onNavigate }) => {
               {latestTemp.temperature} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>°C</span>
             </p>
             <p style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: 2 }}>
-              {latestTemp.method === 'armpit' ? '腋溫 (+0.5°C參考)' : '耳溫'} · {latestTemp.time}
+              {latestTemp.method === 'armpit' ? '腋溫 (+0.5°C參考)' : '耳溫'} · {latestTemp.time || ''}
             </p>
           </>
         ) : (
@@ -105,7 +109,7 @@ const TodaySummaryCards = ({ onNavigate }) => {
           {todayDiapers.length} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>次</span>
         </p>
         <p style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: 2 }}>
-          💦 {todayDiapers.filter(d => d.type === 'wet' || d.type === 'both').length} · 💩 {todayDiapers.filter(d => d.type === 'poop' || d.type === 'both').length}
+          💦 {todayDiapers.filter(d => d && (d.type === 'wet' || d.type === 'both')).length} · 💩 {todayDiapers.filter(d => d && (d.type === 'poop' || d.type === 'both')).length}
         </p>
       </div>
     </div>
