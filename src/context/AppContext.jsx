@@ -655,10 +655,12 @@ export const AppProvider = ({ children }) => {
     }
     if (type === 'all' || type === 'temperature') {
       csvRows.push(['--- 體溫與發燒記錄 ---']);
-      csvRows.push(['ID', '日期', '時間', '體溫(°C)', '狀態', '退燒藥名稱', '備註']);
+      csvRows.push(['ID', '日期', '時間', '量測部位', '量測體溫(°C)', '實際參考體溫(°C)', '狀態', '退燒藥名稱', '備註']);
       tempRecords.forEach(r => {
+        const methodLabel = r.method === 'armpit' ? '腋溫(+0.5°C)' : r.method === 'forehead' ? '額溫' : '耳溫';
+        const refTemp = r.method === 'armpit' ? (Number(r.temperature) + 0.5).toFixed(1) : Number(r.temperature).toFixed(1);
         csvRows.push([
-          r.id, r.date, r.time || '', r.temperature, r.feverStatus || '',
+          r.id, r.date, r.time || '', methodLabel, r.temperature, refTemp, r.feverStatus || '',
           `"${(r.medicationName || '').replace(/"/g, '""')}"`, `"${(r.note || '').replace(/"/g, '""')}"`
         ]);
       });

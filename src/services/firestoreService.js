@@ -298,12 +298,20 @@ export const deleteDoctorVisitFromFirestore = async (id) => {
 // ── Temperature (體溫/發燒記錄) ──
 export const saveTemperatureToFirestore = async (record) => {
   try {
+    const rawTemp = Number(record.temperature);
+    const method = record.method || 'ear';
+    // 腋溫通常需 +0.5°C 作為實際核心體溫參考
+    const refTemp = method === 'armpit' ? (rawTemp + 0.5) : rawTemp;
+    const feverStatus = record.feverStatus || (refTemp >= 38.5 ? 'high' : refTemp >= 37.5 ? 'mild' : 'normal');
+
     await setDoc(doc(db, 'temperature_records', record.id), {
       userId: USER_ID,
       date: record.date,
       time: record.time || '',
-      temperature: Number(record.temperature),
-      feverStatus: record.feverStatus || (Number(record.temperature) >= 38.5 ? 'high' : Number(record.temperature) >= 37.5 ? 'mild' : 'normal'),
+      temperature: rawTemp,
+      method,
+      refTemperature: parseFloat(refTemp.toFixed(1)),
+      feverStatus,
       medicationName: record.medicationName || '',
       note: record.note || '',
       createdAt: new Date().toISOString(),
