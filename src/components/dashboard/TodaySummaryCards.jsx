@@ -37,20 +37,20 @@ const TodaySummaryCards = ({ onNavigate }) => {
       <div
         onClick={() => onNavigate?.('growth')}
         className="card cursor-pointer hover:opacity-90 transition-opacity"
-        style={{ padding: '12px 14px' }}
+        style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '0.85rem', fontFamily: 'var(--font-body)', opacity: 0.7 }}>🍼 今日奶量</span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--blue)' }}>{todayFeedingStats.count} 次</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--blue)', fontWeight: 700 }}>{todayFeedingStats.count} 次</span>
         </div>
-        <p style={{ fontFamily: 'var(--font-number)', fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent)', marginTop: 4 }}>
-          {todayFeedingStats.total} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>ml</span>
+        <p style={{ fontFamily: 'var(--font-number)', fontSize: '1.55rem', fontWeight: 700, color: 'var(--accent)', marginTop: 4, lineHeight: 1.2 }}>
+          {todayFeedingStats.total} <span style={{ fontSize: '0.85rem', fontWeight: 400, color: 'var(--fg)', opacity: 0.8, marginLeft: '2px' }}>ml</span>
         </p>
-        {(todayFeedingStats.breastMilk > 0 || todayFeedingStats.formula > 0) && (
-          <p style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: 2 }}>
-            🤱{todayFeedingStats.breastMilk} + 🍼{todayFeedingStats.formula}
-          </p>
-        )}
+        <p style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: 4, minHeight: '1.1rem', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+          {(todayFeedingStats.breastMilk > 0 || todayFeedingStats.formula > 0)
+            ? `🤱 ${todayFeedingStats.breastMilk} + 🍼 ${todayFeedingStats.formula}`
+            : '尚無詳細配比'}
+        </p>
       </div>
 
       {/* 體溫卡片 */}
@@ -61,23 +61,33 @@ const TodaySummaryCards = ({ onNavigate }) => {
           padding: '12px 14px',
           borderLeft: isFever ? '5px solid #ef4444' : '3px solid var(--fg)',
           background: isFever ? '#fef3c7' : 'var(--card-bg)',
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '0.85rem', fontFamily: 'var(--font-body)', opacity: 0.7 }}>🌡️ 最新體溫</span>
-          {isFever && <span style={{ fontSize: '0.75rem', background: '#fee2e2', color: '#dc2626', padding: '1px 4px', borderRadius: '4px' }}>發燒</span>}
+          {isFever ? (
+            <span style={{ fontSize: '0.75rem', background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>發燒</span>
+          ) : (
+            <span style={{ fontSize: '0.75rem', color: 'var(--blue)', fontWeight: 700 }}>{todayTemps.length} 次</span>
+          )}
         </div>
         {latestTemp ? (
           <>
-            <p style={{ fontFamily: 'var(--font-number)', fontSize: '1.5rem', fontWeight: 700, color: isFever ? '#dc2626' : 'var(--fg)', marginTop: 4 }}>
-              {latestTemp.temperature} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>°C</span>
+            <p style={{ fontFamily: 'var(--font-number)', fontSize: '1.55rem', fontWeight: 700, color: isFever ? '#dc2626' : 'var(--fg)', marginTop: 4, lineHeight: 1.2 }}>
+              {latestTemp.temperature} <span style={{ fontSize: '0.85rem', fontWeight: 400, opacity: 0.8, marginLeft: '2px' }}>°C</span>
             </p>
-            <p style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: 2 }}>
+            <p style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: 4, minHeight: '1.1rem', overflow: 'hidden', whiteSpace: 'nowrap' }}>
               {latestTemp.method === 'armpit' ? '腋溫 (+0.5°C參考)' : '耳溫'} · {latestTemp.time || ''}
             </p>
           </>
         ) : (
-          <p style={{ fontSize: '0.85rem', opacity: 0.5, marginTop: 8 }}>今日未量測</p>
+          <>
+            <p style={{ fontFamily: 'var(--font-number)', fontSize: '1.55rem', fontWeight: 700, opacity: 0.4, marginTop: 4, lineHeight: 1.2 }}>
+              -- <span style={{ fontSize: '0.85rem', fontWeight: 400, opacity: 0.8, marginLeft: '2px' }}>°C</span>
+            </p>
+            <p style={{ fontSize: '0.75rem', opacity: 0.5, marginTop: 4, minHeight: '1.1rem' }}>今日未量測</p>
+          </>
         )}
       </div>
 
@@ -85,14 +95,17 @@ const TodaySummaryCards = ({ onNavigate }) => {
       <div
         onClick={() => onNavigate?.('growth')}
         className="card cursor-pointer hover:opacity-90 transition-opacity"
-        style={{ padding: '12px 14px' }}
+        style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '0.85rem', fontFamily: 'var(--font-body)', opacity: 0.7 }}>😴 今日睡眠</span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--blue)' }}>{todaySleeps.length} 段</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--blue)', fontWeight: 700 }}>{todaySleeps.length} 段</span>
         </div>
-        <p style={{ fontFamily: 'var(--font-number)', fontSize: '1.5rem', fontWeight: 700, marginTop: 4 }}>
-          {(totalSleepMinutes / 60).toFixed(1)} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>小時</span>
+        <p style={{ fontFamily: 'var(--font-number)', fontSize: '1.55rem', fontWeight: 700, marginTop: 4, lineHeight: 1.2 }}>
+          {(totalSleepMinutes / 60).toFixed(1)} <span style={{ fontSize: '0.85rem', fontWeight: 400, opacity: 0.8, marginLeft: '2px' }}>小時</span>
+        </p>
+        <p style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: 4, minHeight: '1.1rem', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+          {totalSleepMinutes > 0 ? `共 ${totalSleepMinutes} 分鐘` : '尚無睡眠記錄'}
         </p>
       </div>
 
@@ -100,15 +113,16 @@ const TodaySummaryCards = ({ onNavigate }) => {
       <div
         onClick={() => onNavigate?.('growth')}
         className="card cursor-pointer hover:opacity-90 transition-opacity"
-        style={{ padding: '12px 14px' }}
+        style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '0.85rem', fontFamily: 'var(--font-body)', opacity: 0.7 }}>💩 尿布/便便</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--blue)', fontWeight: 700 }}>{todayDiapers.length} 次</span>
         </div>
-        <p style={{ fontFamily: 'var(--font-number)', fontSize: '1.5rem', fontWeight: 700, marginTop: 4 }}>
-          {todayDiapers.length} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>次</span>
+        <p style={{ fontFamily: 'var(--font-number)', fontSize: '1.55rem', fontWeight: 700, marginTop: 4, lineHeight: 1.2 }}>
+          {todayDiapers.length} <span style={{ fontSize: '0.85rem', fontWeight: 400, opacity: 0.8, marginLeft: '2px' }}>次</span>
         </p>
-        <p style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: 2 }}>
+        <p style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: 4, minHeight: '1.1rem', overflow: 'hidden', whiteSpace: 'nowrap' }}>
           💦 {todayDiapers.filter(d => d && (d.type === 'wet' || d.type === 'both')).length} · 💩 {todayDiapers.filter(d => d && (d.type === 'poop' || d.type === 'both')).length}
         </p>
       </div>

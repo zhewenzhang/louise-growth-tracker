@@ -81,19 +81,20 @@ const AppContent = () => {
       )}
 
       {/* Page content — scrollable */}
-      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: '80px' }}>
+      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 'calc(94px + env(safe-area-inset-bottom, 0px))' }}>
         <ActivePage onNavigate={handleNavigate} {...pageParams} />
       </div>
 
-      {/* Bottom navigation — hand-drawn style */}
+      {/* Bottom navigation — hand-drawn style with Safe Area */}
       <nav style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40,
         background: 'var(--card-bg)',
         borderTop: '3px solid var(--fg)',
         boxShadow: '0 -4px 0px 0px var(--fg)',
         borderRadius: '255px 25px 225px 25px / 25px 225px 25px 255px',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 4px)',
       }}>
-        <div className="flex items-center justify-around" style={{ height: '72px', padding: '0 8px' }}>
+        <div className="flex items-center justify-around" style={{ height: '66px', padding: '0 4px' }}>
           {navPages.map(({ id, label, icon: Icon }) => {
             const isActive = id === currentPage;
             return (
@@ -106,20 +107,21 @@ const AppContent = () => {
                   color: isActive ? 'var(--accent)' : 'var(--fg)',
                   background: 'none', border: 'none', cursor: 'pointer',
                   fontWeight: isActive ? 700 : 400,
-                  fontSize: '11px',
+                  fontSize: '0.75rem',
+                  lineHeight: '1.2',
+                  padding: '4px 0',
+                  flexShrink: 0,
                   transition: 'all 0.15s ease',
-                  transform: isActive ? 'translateY(-4px)' : 'none',
                 }}
               >
+                <Icon size={21} strokeWidth={isActive ? 2.5 : 1.8} style={{ marginBottom: '2px', flexShrink: 0 }} />
+                <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
                 {isActive && (
-                  <div style={{
-                    position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)',
-                    width: 28, height: 4, borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px',
-                    background: 'var(--accent)',
+                  <span style={{
+                    position: 'absolute', bottom: '2px', width: '16px', height: '3px',
+                    backgroundColor: 'var(--accent)', borderRadius: '2px',
                   }} />
                 )}
-                <Icon size={isActive ? 26 : 22} strokeWidth={isActive ? 3 : 2} />
-                <span style={{ marginTop: 2 }}>{label}</span>
               </button>
             );
           })}

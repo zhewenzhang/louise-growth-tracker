@@ -9,22 +9,22 @@ const BabyProfileHeader = ({ user, babyAge, onNavigate }) => {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-      <div>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2.3rem', lineHeight: 1.2, color: 'var(--fg)' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2.1rem', lineHeight: 1.2, color: 'var(--fg)' }}>
           {getGreeting()}
         </h1>
         {user?.name && (
-          <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', color: 'var(--accent)', marginTop: 2 }}>
+          <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.7rem', color: 'var(--accent)', marginTop: 2 }}>
             {user.name}
           </p>
         )}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
-          <span className="badge" style={{ background: 'var(--yellow)', color: '#2d2d2d', fontSize: '0.85rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start', marginTop: 6 }}>
+          <span className="badge" style={{ background: 'var(--yellow)', color: '#2d2d2d', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
             👶 {typeof babyAge === 'string' ? babyAge : (babyAge?.chronological || '計算中...')}
           </span>
           {typeof babyAge === 'object' && babyAge?.isPremature && babyAge?.corrected && (
-            <span className="badge" style={{ background: '#e0f2fe', color: '#0284c7', fontSize: '0.85rem' }}>
+            <span className="badge" style={{ background: '#e0f2fe', color: '#0284c7', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
               🍼 矯正 {babyAge.corrected}
             </span>
           )}
@@ -44,6 +44,9 @@ const BabyProfileHeader = ({ user, babyAge, onNavigate }) => {
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
+          flexShrink: 0,
+          whiteSpace: 'nowrap',
+          marginTop: '4px',
         }}
         title="設定"
       >

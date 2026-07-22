@@ -55,15 +55,15 @@ const DayTimeline = () => {
     <div className="card space-y-3" style={{ padding: '16px' }}>
       {/* 標題與日期選擇 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
           ⏱️ 24h 晝夜作息時間軸
         </h3>
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <button className="btn-sm" onClick={handlePrevDay} title="前一天">👈</button>
-          <button className={`btn-sm ${isToday ? 'btn-blue' : ''}`} onClick={handleToday} style={{ fontSize: '0.8rem' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+          <button className="btn-sm" onClick={handlePrevDay} title="前一天" style={{ padding: '4px 8px', flexShrink: 0 }}>👈</button>
+          <button className={`btn-sm ${isToday ? 'btn-blue' : ''}`} onClick={handleToday} style={{ fontSize: '0.8rem', padding: '4px 10px', whiteSpace: 'nowrap', flexShrink: 0 }}>
             {selectedDate} {isToday ? '(今天)' : ''}
           </button>
-          <button className="btn-sm" onClick={handleNextDay} title="後一天">👉</button>
+          <button className="btn-sm" onClick={handleNextDay} title="後一天" style={{ padding: '4px 8px', flexShrink: 0 }}>👉</button>
         </div>
       </div>
 
@@ -118,7 +118,7 @@ const DayTimeline = () => {
                   whiteSpace: 'nowrap',
                 }}
               >
-                😴 {(dur / 60).toFixed(1)}h
+                {widthPct >= 7.5 ? `😴 ${(dur / 60).toFixed(1)}h` : (widthPct >= 3.5 ? '😴' : '')}
               </div>
             );
           })}
@@ -212,12 +212,12 @@ const DayTimeline = () => {
         </div>
       </div>
 
-      {/* 當日作息事件清單圖例 / 摘要 */}
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '0.82rem', background: 'var(--bg)', padding: '8px 12px', borderRadius: 'var(--wobbly-sm)' }}>
-        <div>😴 總睡眠: <strong>{(daySleeps.reduce((sum, s) => sum + (s?.durationMinutes || 0), 0) / 60).toFixed(1)}h</strong> ({daySleeps.length} 次)</div>
-        <div>🍼 總奶量: <strong>{dayFeedings.reduce((sum, f) => sum + (f?.value || 0), 0)}ml</strong> ({dayFeedings.length} 次)</div>
+      {/* 當日作息事件摘要 - 2x2 對齊 Grid 網格 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px 12px', fontSize: '0.82rem', background: 'var(--bg)', padding: '10px 12px', borderRadius: 'var(--wobbly-sm)', border: '1px solid var(--fg)' }}>
+        <div>😴 總睡眠: <strong>{(daySleeps.reduce((sum, s) => sum + (s?.durationMinutes || 0), 0) / 60).toFixed(1)}h</strong> ({daySleeps.length}次)</div>
+        <div>🍼 總奶量: <strong>{dayFeedings.reduce((sum, f) => sum + (f?.value || 0), 0)}ml</strong> ({dayFeedings.length}次)</div>
         <div>💩 尿布/便便: <strong>{dayDiapers.length} 次</strong></div>
-        {dayTemps.length > 0 && <div>🌡️ 體溫: <strong>{dayTemps.length} 次</strong></div>}
+        <div>🌡️ 體溫記錄: <strong>{dayTemps.length} 次</strong></div>
       </div>
 
       {totalEvents === 0 && (
