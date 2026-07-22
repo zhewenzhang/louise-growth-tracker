@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext.jsx';
 import { genId } from '../../utils/id';
 import PhotoImport from '../PhotoImport';
@@ -10,10 +10,17 @@ const TABS = [
   { id: 'headCircumference', label: '👶 頭圍', unit: 'cm', step: '0.1', placeholder: '例如：34.5', showTime: false },
   { id: 'chestCircumference', label: '👕 胸圍', unit: 'cm', step: '0.1', placeholder: '例如：33.0', showTime: false },
   { id: 'feeding', label: '🍼 奶量', unit: 'ml', step: '1', placeholder: '例如：60', showTime: true, showFeeding: true },
+  { id: 'sleep', label: '😴 睡眠', unit: '小時', showSleep: true },
+  { id: 'diaper', label: '💩 尿布', unit: '次', showDiaper: true },
 ];
 
 const Growth = () => {
-  const { growthRecords, addGrowthRecord, deleteGrowthRecord } = useApp();
+  const {
+    growthRecords, addGrowthRecord, deleteGrowthRecord,
+    sleepRecords, addSleepRecord, deleteSleepRecord,
+    diaperRecords, addDiaperRecord, deleteDiaperRecord,
+  } = useApp();
+
   const [activeTab, setActiveTab] = useState('weight');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
@@ -23,36 +30,80 @@ const Growth = () => {
   const [showPhotoImport, setShowPhotoImport] = useState(false);
   const [showBatchHistory, setShowBatchHistory] = useState(false);
 
+  // 睡眠表單
+  const [startTime, setStartTime] = useState('21:00');
+  const [endTime, setEndTime] = useState('07:00');
+  const [sleepQuality, setSleepQuality] = useState('good');
+  const [sleepNote, setSleepNote] = useState('');
+
+  // 尿布表單
+  const [diaperType, setDiaperType] = useState('wet'); // 'wet' | 'poop' | 'both'
+  const [poopColor, setPoopColor] = useState('金黃');
+  const [poopTexture, setPoopTexture] = useState('糊狀');
+  const [diaperNote, setDiaperNote] = useState('');
+
   const activeTabInfo = TABS.find(t => t.id === activeTab);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!date) return;
+
+    if (activeTab === 'sleep') {
+      const [sh, sm] = startTime.split(':').map(Number);
+      const [eh, em] = endTime.split(':').map(Number);
+      let startM = sh * 60 + sm;
+      let endM = eh * 60 + em;
+      if (endM <= startM) endM += 24 * 60; // 跨夜
+      const durationMinutes = endM - startM;
+
+      addSleepRecord({
+        date,
+        startTime,
+        endTime,
+        durationMinutes,
+        quality: sleepQuality,
+        note: sleepNote,
+      });
+      setSleepNote('');
+      return;
+    }
+
+    if (activeTab === 'diaper') {
+      addDiaperRecord({
+        date,
+        time,
+        type: diaperType,
+        poopColor: diaperType !== 'wet' ? poopColor : '',
+        poopTexture: diaperType !== 'wet' ? poopTexture : '',
+        note: diaperNote,
+      });
+      setDiaperNote('');
+      return;
+    }
+
     const record = {
       id: genId(),
       date,
       type: activeTab,
       unit: activeTabInfo.unit,
     };
-    // 奶量記錄附帶時間
     if (activeTabInfo.showTime) {
       record.time = time;
     }
-    
+
     if (activeTab === 'feeding') {
       const bm = parseInt(breastMilk) || 0;
       const fm = parseInt(formulaMilk) || 0;
-      if (bm === 0 && fm === 0) return; // 至少一個有值
+      if (bm === 0 && fm === 0) return;
       record.breastMilk = bm;
       record.formula = fm;
-      record.value = bm + fm; // 總量供統計用
-      // 防衛：標記資料來自新版本（後續可用於診斷）
+      record.value = bm + fm;
       record._schemaVersion = 2;
     } else {
       if (!value) return;
       record.value = parseFloat(value);
     }
-    
+
     addGrowthRecord(record);
     setValue('');
     setBreastMilk('');
@@ -61,12 +112,10 @@ const Growth = () => {
 
   const records = growthRecords.filter(r => r.type === activeTab);
   const sortedRecords = [...records].sort((a, b) => {
-    // 同一天內按時間排
     if (a.date === b.date && a.time && b.time) return b.time.localeCompare(a.time);
     return new Date(b.date) - new Date(a.date);
   });
 
-  // 今天奶量總計（分開母乳和配方）
   const todayStr = new Date().toISOString().split('T')[0];
   const todayFeedingStats = growthRecords
     .filter(r => r.type === 'feeding' && r.date === todayStr)
@@ -80,7 +129,7 @@ const Growth = () => {
 
   return (
     <div className="p-4 space-y-5" style={{ paddingBottom: '20px' }}>
-      <h2 className="section-title">📏 成長追蹤</h2>
+      <h2 className="section-title">📏 成長與作息追蹤</h2>
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2">
@@ -129,16 +178,95 @@ const Growth = () => {
             <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>日期</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
           </div>
-          {activeTabInfo.showTime && (
-            <div>
-              <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>時間</label>
-              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
-            </div>
+
+          {/* ── 睡眠專屬表單 ── */}
+          {activeTab === 'sleep' && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <label className="block mb-1 font-bold">睡覺時間</label>
+                  <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block mb-1 font-bold">起床時間</label>
+                  <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} required />
+                </div>
+              </div>
+              <div>
+                <label className="block mb-1 font-bold">睡眠品質</label>
+                <select value={sleepQuality} onChange={e => setSleepQuality(e.target.value)}>
+                  <option value="good">😊 熟睡 / 良好</option>
+                  <option value="normal">😐 一般 / 中途醒來</option>
+                  <option value="restless">😫 哭鬧 / 夜驚不安</option>
+                </select>
+              </div>
+              <div>
+                <label className="block mb-1 font-bold">備註（選填）</label>
+                <input type="text" value={sleepNote} onChange={e => setSleepNote(e.target.value)} placeholder="例如：睡前喝奶 150ml" />
+              </div>
+            </>
           )}
-          {activeTabInfo.showFeeding ? (
+
+          {/* ── 尿布專屬表單 ── */}
+          {activeTab === 'diaper' && (
             <>
               <div>
-                <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>🤱 母乳 (ml)</label>
+                <label className="block mb-1 font-bold">時間</label>
+                <input type="time" value={time} onChange={e => setTime(e.target.value)} required />
+              </div>
+              <div>
+                <label className="block mb-1 font-bold">類型</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={() => setDiaperType('wet')} className={`btn-sm ${diaperType === 'wet' ? 'btn-blue' : ''}`} style={{ flex: 1 }}>
+                    💦 尿尿
+                  </button>
+                  <button type="button" onClick={() => setDiaperType('poop')} className={`btn-sm ${diaperType === 'poop' ? 'btn-blue' : ''}`} style={{ flex: 1 }}>
+                    💩 便便
+                  </button>
+                  <button type="button" onClick={() => setDiaperType('both')} className={`btn-sm ${diaperType === 'both' ? 'btn-blue' : ''}`} style={{ flex: 1 }}>
+                    💦+💩 都有
+                  </button>
+                </div>
+              </div>
+              {diaperType !== 'wet' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div>
+                    <label className="block mb-1 font-bold">便便顏色</label>
+                    <select value={poopColor} onChange={e => setPoopColor(e.target.value)}>
+                      <option value="金黃">黃色 / 金黃</option>
+                      <option value="綠色">墨綠 / 綠色</option>
+                      <option value="褐色">褐色 / 棕色</option>
+                      <option value="異常白色">⚠️ 灰白 (需注意)</option>
+                      <option value="異常血絲">⚠️ 帶血絲 (需注意)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block mb-1 font-bold">便便質地</label>
+                    <select value={poopTexture} onChange={e => setPoopTexture(e.target.value)}>
+                      <option value="糊狀">糊狀 (正常)</option>
+                      <option value="水稀">水稀 / 水便</option>
+                      <option value="成形">成形 / 軟便</option>
+                      <option value="硬塊">硬塊 / 便秘</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="block mb-1 font-bold">備註（選填）</label>
+                <input type="text" value={diaperNote} onChange={e => setDiaperNote(e.target.value)} placeholder="例如：量多、換尿布時順便洗屁屁" />
+              </div>
+            </>
+          )}
+
+          {/* ── 奶量專屬表單 ── */}
+          {activeTab === 'feeding' && (
+            <>
+              <div>
+                <label className="block mb-1 font-bold">時間</label>
+                <input type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
+              </div>
+              <div>
+                <label className="block mb-1 font-bold">🤱 母乳 (ml)</label>
                 <input
                   type="number" step="1" min="0" max="500"
                   value={breastMilk} onChange={(e) => setBreastMilk(e.target.value)}
@@ -146,7 +274,7 @@ const Growth = () => {
                 />
               </div>
               <div>
-                <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>🍼 配方奶 (ml)</label>
+                <label className="block mb-1 font-bold">🍼 配方奶 (ml)</label>
                 <input
                   type="number" step="1" min="0" max="500"
                   value={formulaMilk} onChange={(e) => setFormulaMilk(e.target.value)}
@@ -154,9 +282,12 @@ const Growth = () => {
                 />
               </div>
             </>
-          ) : (
+          )}
+
+          {/* ── 通用身高/體重/頭圍/胸圍表單 ── */}
+          {!activeTabInfo.showFeeding && !activeTabInfo.showSleep && !activeTabInfo.showDiaper && (
             <div>
-              <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>
+              <label className="block mb-1 font-bold">
                 數值 ({activeTabInfo.unit})
               </label>
               <input
@@ -166,62 +297,124 @@ const Growth = () => {
               />
             </div>
           )}
-          <button type="submit" className="btn w-full">✅ 新增記錄</button>
+
+          <button type="submit" className="btn w-full btn-blue">✅ 新增記錄</button>
         </div>
       </form>
 
       {/* History */}
       <div>
-        <h3 className="section-title">記錄歷史 ({records.length} 筆)</h3>
-        {sortedRecords.length === 0 ? (
-          <div className="card text-center">
-            <p className="text-4xl mb-2">📊</p>
-            <p style={{ fontFamily: 'var(--font-body)', opacity: 0.6 }}>還沒有記錄，開始添加第一筆數據吧！</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {sortedRecords.map(record => (
-              <div key={record.id} className="card p-3 flex justify-between items-center animate-in">
-                <div>
-                  {record.type === 'feeding' ? (() => {
-                    const bm = Number(record.breastMilk) || 0;
-                    const fm = Number(record.formula) || 0;
-                    const total = Number(record.value) || 0;
-                    // 如果有 breastMilk/formula 明細，顯示詳細
-                    const hasDetail = bm > 0 || fm > 0;
-                    return (
+        {/* ── 睡眠歷史 ── */}
+        {activeTab === 'sleep' && (
+          <div>
+            <h3 className="section-title">睡眠歷史 ({sleepRecords.length} 筆)</h3>
+            {sleepRecords.length === 0 ? (
+              <div className="card text-center opacity-60">尚無睡眠記錄</div>
+            ) : (
+              <div className="space-y-2">
+                {sleepRecords.map(r => (
+                  <div key={r.id} className="card p-3 flex justify-between items-center">
+                    <div>
                       <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
-                        {hasDetail ? (
-                          <>
-                            {bm > 0 && `🤱${bm}`}
-                            {bm > 0 && fm > 0 && ' + '}
-                            {fm > 0 && `🍼${fm}`}
-                            {(bm + fm !== total) && (
-                              <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> = {total} ml</span>
-                            )}
-                            {(bm + fm === total) && (
-                              <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> ml</span>
-                            )}
-                          </>
-                        ) : (
-                          // 缺明細時，至少顯示總量（避免空白只剩 "= 89 ml"）
-                          <>🍼 {total} ml</>
-                        )}
+                        🌙 {(r.durationMinutes / 60).toFixed(1)} 小時
                       </span>
-                    );
-                  })() : (
-                    <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
-                      {record.value} {record.unit}
-                    </span>
-                  )}
-                  <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.6 }}>
-                    {record.date}
-                    {record.time && ` ${record.time}`}
-                  </p>
-                </div>
-                <button onClick={() => deleteGrowthRecord(record.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
+                      <span style={{ fontSize: '0.85rem', marginLeft: 8, opacity: 0.8 }}>
+                        ({r.startTime} ~ {r.endTime})
+                      </span>
+                      <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+                        📅 {r.date} · {r.quality === 'good' ? '😊 熟睡' : r.quality === 'normal' ? '😐 一般' : '😫 哭鬧'}
+                        {r.note && ` · ${r.note}`}
+                      </p>
+                    </div>
+                    <button onClick={() => deleteSleepRecord(r.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+          </div>
+        )}
+
+        {/* ── 尿布歷史 ── */}
+        {activeTab === 'diaper' && (
+          <div>
+            <h3 className="section-title">尿布記錄 ({diaperRecords.length} 筆)</h3>
+            {diaperRecords.length === 0 ? (
+              <div className="card text-center opacity-60">尚無尿布記錄</div>
+            ) : (
+              <div className="space-y-2">
+                {diaperRecords.map(r => (
+                  <div key={r.id} className="card p-3 flex justify-between items-center">
+                    <div>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600 }}>
+                        {r.type === 'wet' ? '💦 尿尿' : r.type === 'poop' ? '💩 便便' : '💦+💩 都有'}
+                      </span>
+                      {r.poopColor && <span style={{ fontSize: '0.85rem', marginLeft: 8, opacity: 0.8 }}>{r.poopColor} ({r.poopTexture})</span>}
+                      <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+                        📅 {r.date} {r.time}
+                        {r.note && ` · ${r.note}`}
+                      </p>
+                    </div>
+                    <button onClick={() => deleteDiaperRecord(r.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── 身高/體重/奶量歷史 ── */}
+        {activeTab !== 'sleep' && activeTab !== 'diaper' && (
+          <div>
+            <h3 className="section-title">記錄歷史 ({records.length} 筆)</h3>
+            {sortedRecords.length === 0 ? (
+              <div className="card text-center">
+                <p className="text-4xl mb-2">📊</p>
+                <p style={{ fontFamily: 'var(--font-body)', opacity: 0.6 }}>還沒有記錄，開始添加第一筆數據吧！</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {sortedRecords.map(record => (
+                  <div key={record.id} className="card p-3 flex justify-between items-center animate-in">
+                    <div>
+                      {record.type === 'feeding' ? (() => {
+                        const bm = Number(record.breastMilk) || 0;
+                        const fm = Number(record.formula) || 0;
+                        const total = Number(record.value) || 0;
+                        const hasDetail = bm > 0 || fm > 0;
+                        return (
+                          <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
+                            {hasDetail ? (
+                              <>
+                                {bm > 0 && `🤱${bm}`}
+                                {bm > 0 && fm > 0 && ' + '}
+                                {fm > 0 && `🍼${fm}`}
+                                {(bm + fm !== total) && (
+                                  <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> = {total} ml</span>
+                                )}
+                                {(bm + fm === total) && (
+                                  <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> ml</span>
+                                )}
+                              </>
+                            ) : (
+                              <>🍼 {total} ml</>
+                            )}
+                          </span>
+                        );
+                      })() : (
+                        <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
+                          {record.value} {record.unit}
+                        </span>
+                      )}
+                      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.6 }}>
+                        {record.date}
+                        {record.time && ` ${record.time}`}
+                      </p>
+                    </div>
+                    <button onClick={() => deleteGrowthRecord(record.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

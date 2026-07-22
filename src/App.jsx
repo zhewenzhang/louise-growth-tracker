@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Home, TrendingUp, Heart, BookOpen, Settings as SettingsIcon } from 'lucide-react';
 import { AppProvider } from './context/AppContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -28,6 +28,27 @@ const allPages = [
 const AppContent = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [pageParams, setPageParams] = useState({});
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [showOnlineToast, setShowOnlineToast] = useState(false);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setShowOnlineToast(true);
+      setTimeout(() => setShowOnlineToast(false), 4000);
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleNavigate = (pageId, params = {}) => {
     setCurrentPage(pageId);
@@ -38,6 +59,27 @@ const AppContent = () => {
 
   return (
     <div className="flex flex-col h-screen" style={{ background: 'var(--bg)' }}>
+      {/* 📡 離線/連線狀態提示 */}
+      {!isOnline && (
+        <div style={{
+          background: '#fef3c7', borderBottom: '2px solid #f59e0b', padding: '6px 12px',
+          textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: '0.85rem', color: '#92400e',
+          zIndex: 50, flexShrink: 0
+        }}>
+          📡 離線模式中（記錄將安全存於手機，恢復網路後自動同步）
+        </div>
+      )}
+
+      {showOnlineToast && (
+        <div style={{
+          background: '#d1fae5', borderBottom: '2px solid #10b981', padding: '6px 12px',
+          textAlign: 'center', fontFamily: 'var(--font-body)', fontSize: '0.85rem', color: '#065f46',
+          zIndex: 50, flexShrink: 0
+        }}>
+          ✅ 已恢復網路連線，雲端同步中
+        </div>
+      )}
+
       {/* Page content — scrollable */}
       <div className="flex-1 overflow-y-auto" style={{ paddingBottom: '80px' }}>
         <ActivePage onNavigate={handleNavigate} {...pageParams} />
