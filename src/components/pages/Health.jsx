@@ -8,7 +8,7 @@ import { Line } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 const Health = ({ initialTab } = {}) => {
-  const { vaccineRecords, toggleVaccine, addCustomVaccine, updateVaccine, updateVaccineDate, deleteVaccine, bpRecords, addBpRecord, deleteBpRecord, medications, addMedication, updateMedication, deleteMedication, doctorVisits, addDoctorVisit, updateDoctorVisit, deleteDoctorVisit, user } = useApp();
+  const { vaccineRecords, toggleVaccine, addCustomVaccine, updateVaccine, updateVaccineDate, deleteVaccine, bpRecords, addBpRecord, deleteBpRecord, tempRecords, addTempRecord, deleteTempRecord, medications, addMedication, updateMedication, deleteMedication, doctorVisits, addDoctorVisit, updateDoctorVisit, deleteDoctorVisit, exportCSV, user } = useApp();
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [editDate, setEditDate] = useState('');
@@ -16,6 +16,12 @@ const Health = ({ initialTab } = {}) => {
   const [editDose, setEditDose] = useState('');
   const [vaccineSubTab, setVaccineSubTab] = useState('todo'); // 'todo' | 'done'
   const [customForm, setCustomForm] = useState({ name: '', dose: '1劑', ageMonths: '', dueDate: '' });
+  // 體溫表單
+  const [tempDate, setTempDate] = useState(new Date().toISOString().split('T')[0]);
+  const [tempTime, setTempTime] = useState(new Date().toTimeString().slice(0, 5));
+  const [tempValue, setTempValue] = useState('');
+  const [tempMed, setTempMed] = useState('');
+  const [tempNote, setTempNote] = useState('');
   const [bpDate, setBpDate] = useState(new Date().toISOString().split('T')[0]);
   const [bpTime, setBpTime] = useState(new Date().toTimeString().slice(0, 5));
   const [bpSystolic, setBpSystolic] = useState('');
@@ -108,18 +114,26 @@ const Health = ({ initialTab } = {}) => {
       {/* ====== 標題 + Tab 切換 ====== */}
       <div style={{ flexShrink: 0, background: 'var(--bg)', paddingBottom: '8px' }}>
         <h2 className="section-title" style={{ marginBottom: '8px' }}>💉 健康管理</h2>
-        <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
-          <button onClick={() => setActiveTab('vaccine')} className={`btn-sm ${activeTab === 'vaccine' ? 'btn-blue' : ''}`}>
-            💉 疫苗
-          </button>
-          <button onClick={() => setActiveTab('bp')} className={`btn-sm ${activeTab === 'bp' ? 'btn-blue' : ''}`}>
-            ❤️ 血壓
-          </button>
-          <button onClick={() => setActiveTab('med')} className={`btn-sm ${activeTab === 'med' ? 'btn-blue' : ''}`}>
-            💊 用藥
-          </button>
-          <button onClick={() => setActiveTab('visit')} className={`btn-sm ${activeTab === 'visit' ? 'btn-blue' : ''}`}>
-            🏥 看診
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            <button onClick={() => setActiveTab('vaccine')} className={`btn-sm ${activeTab === 'vaccine' ? 'btn-blue' : ''}`}>
+              💉 疫苗
+            </button>
+            <button onClick={() => setActiveTab('temp')} className={`btn-sm ${activeTab === 'temp' ? 'btn-blue' : ''}`}>
+              🌡️ 體溫
+            </button>
+            <button onClick={() => setActiveTab('med')} className={`btn-sm ${activeTab === 'med' ? 'btn-blue' : ''}`}>
+              💊 用藥
+            </button>
+            <button onClick={() => setActiveTab('visit')} className={`btn-sm ${activeTab === 'visit' ? 'btn-blue' : ''}`}>
+              🏥 看診
+            </button>
+            <button onClick={() => setActiveTab('bp')} className={`btn-sm ${activeTab === 'bp' ? 'btn-blue' : ''}`}>
+              ❤️ 血壓
+            </button>
+          </div>
+          <button onClick={() => exportCSV('all')} className="btn-sm" style={{ background: 'var(--yellow)', color: '#2d2d2d' }} title="下載健康 CSV 報告">
+            📥 匯出 CSV 報告
           </button>
         </div>
       </div>
@@ -323,6 +337,125 @@ const Health = ({ initialTab } = {}) => {
               </div>
             )}
           </>
+        )}
+
+        {/* ── 體溫 Tab ── */}
+        {activeTab === 'temp' && (
+          <div className="space-y-4">
+            {/* 發燒警告 Banner */}
+            {(() => {
+              const latest = tempRecords.length > 0 ? tempRecords[0] : null;
+              if (!latest) return null;
+              const isHigh = latest.temperature >= 38.5;
+              const isMild = latest.temperature >= 37.5 && latest.temperature < 38.5;
+              if (!isHigh && !isMild) return null;
+              return (
+                <div className="sticky-note" style={{
+                  background: isHigh ? '#fee2e2' : '#fef3c7',
+                  borderColor: isHigh ? '#ef4444' : '#f59e0b',
+                  textAlign: 'center',
+                }}>
+                  <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', color: isHigh ? '#dc2626' : '#d97706' }}>
+                    {isHigh ? '🔥 注意：高燒中！' : '⚠️ 注意：微燒中'}
+                  </p>
+                  <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.95rem' }}>
+                    最新體溫：<strong>{latest.temperature} °C</strong>（{latest.date} {latest.time}）
+                    {latest.medicationName && ` · 已服藥：${latest.medicationName}`}
+                  </p>
+                </div>
+              );
+            })()}
+
+            {/* 新增體溫表單 */}
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!tempValue) return;
+              const val = parseFloat(tempValue);
+              addTempRecord({
+                date: tempDate,
+                time: tempTime,
+                temperature: val,
+                feverStatus: val >= 38.5 ? 'high' : val >= 37.5 ? 'mild' : 'normal',
+                medicationName: tempMed,
+                note: tempNote,
+              });
+              setTempValue('');
+              setTempMed('');
+              setTempNote('');
+            }} className="card space-y-3">
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem' }}>🌡️ 量測體溫</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label className="block mb-1 font-bold">日期</label>
+                  <input type="date" value={tempDate} onChange={(e) => setTempDate(e.target.value)} required />
+                </div>
+                <div>
+                  <label className="block mb-1 font-bold">時間</label>
+                  <input type="time" value={tempTime} onChange={(e) => setTempTime(e.target.value)} required />
+                </div>
+              </div>
+              <div>
+                <label className="block mb-1 font-bold">體溫 (°C)</label>
+                <input
+                  type="number" step="0.1" min="34" max="43"
+                  placeholder="例如：37.8"
+                  value={tempValue} onChange={(e) => setTempValue(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block mb-1 font-bold">退燒藥 / 處置（選填）</label>
+                <input
+                  type="text" placeholder="例如：安佳熱 2.5ml"
+                  value={tempMed} onChange={(e) => setTempMed(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block mb-1 font-bold">備註（選填）</label>
+                <input
+                  type="text" placeholder="例如：洗溫水澡、活動力正常"
+                  value={tempNote} onChange={(e) => setTempNote(e.target.value)}
+                />
+              </div>
+              <button type="submit" className="btn w-full btn-blue">✅ 新增體溫記錄</button>
+            </form>
+
+            {/* 歷史體溫 */}
+            <div>
+              <h3 className="section-title">體溫歷史 ({tempRecords.length} 筆)</h3>
+              {tempRecords.length === 0 ? (
+                <div className="card text-center text-sm opacity-60">尚無體溫記錄</div>
+              ) : (
+                <div className="space-y-2">
+                  {tempRecords.map(r => {
+                    const isHigh = r.temperature >= 38.5;
+                    const isMild = r.temperature >= 37.5 && r.temperature < 38.5;
+                    return (
+                      <div key={r.id} className="card p-3 flex justify-between items-center" style={{
+                        borderLeft: isHigh ? '5px solid #ef4444' : isMild ? '5px solid #f59e0b' : '5px solid #10b981',
+                      }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.3rem', fontWeight: 700, color: isHigh ? '#dc2626' : isMild ? '#d97706' : 'var(--fg)' }}>
+                              {r.temperature} °C
+                            </span>
+                            {isHigh && <span style={{ background: '#fee2e2', color: '#dc2626', fontSize: '0.75rem', padding: '1px 6px', borderRadius: '4px' }}>高燒</span>}
+                            {isMild && <span style={{ background: '#fef3c7', color: '#d97706', fontSize: '0.75rem', padding: '1px 6px', borderRadius: '4px' }}>發燒</span>}
+                          </div>
+                          <p style={{ fontSize: '0.85rem', opacity: 0.7 }}>
+                            📅 {r.date} {r.time}
+                            {r.medicationName && ` · 💊 ${r.medicationName}`}
+                          </p>
+                          {r.note && <p style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '2px' }}>📝 {r.note}</p>}
+                        </div>
+                        <button onClick={() => deleteTempRecord(r.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* ── 血壓 Tab ── */}

@@ -295,6 +295,93 @@ export const deleteDoctorVisitFromFirestore = async (id) => {
   try { await deleteDoc(doc(db, 'doctor_visits', id)); } catch (e) { notifyWriteError('delete doctor visit', e); }
 };
 
+// ── Temperature (體溫/發燒記錄) ──
+export const saveTemperatureToFirestore = async (record) => {
+  try {
+    await setDoc(doc(db, 'temperature_records', record.id), {
+      userId: USER_ID,
+      date: record.date,
+      time: record.time || '',
+      temperature: Number(record.temperature),
+      feverStatus: record.feverStatus || (Number(record.temperature) >= 38.5 ? 'high' : Number(record.temperature) >= 37.5 ? 'mild' : 'normal'),
+      medicationName: record.medicationName || '',
+      note: record.note || '',
+      createdAt: new Date().toISOString(),
+    });
+  } catch (e) { notifyWriteError('save temperature', e); }
+};
+
+export const loadTemperaturesFromFirestore = async () => {
+  try {
+    const snap = await getDocs(collection(db, 'temperature_records'));
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    data.sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00')));
+    return data;
+  } catch (e) { console.warn('Firestore load temperature:', e.message); return null; }
+};
+
+export const deleteTemperatureFromFirestore = async (id) => {
+  try { await deleteDoc(doc(db, 'temperature_records', id)); } catch (e) { notifyWriteError('delete temperature', e); }
+};
+
+// ── Sleep (睡眠記錄) ──
+export const saveSleepToFirestore = async (record) => {
+  try {
+    await setDoc(doc(db, 'sleep_records', record.id), {
+      userId: USER_ID,
+      date: record.date,
+      startTime: record.startTime || '',
+      endTime: record.endTime || '',
+      durationMinutes: Number(record.durationMinutes) || 0,
+      quality: record.quality || 'good',
+      note: record.note || '',
+      createdAt: new Date().toISOString(),
+    });
+  } catch (e) { notifyWriteError('save sleep', e); }
+};
+
+export const loadSleepFromFirestore = async () => {
+  try {
+    const snap = await getDocs(collection(db, 'sleep_records'));
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    data.sort((a, b) => new Date(b.date + 'T' + (b.startTime || '00:00')) - new Date(a.date + 'T' + (a.startTime || '00:00')));
+    return data;
+  } catch (e) { console.warn('Firestore load sleep:', e.message); return null; }
+};
+
+export const deleteSleepFromFirestore = async (id) => {
+  try { await deleteDoc(doc(db, 'sleep_records', id)); } catch (e) { notifyWriteError('delete sleep', e); }
+};
+
+// ── Diaper (尿布/排泄記錄) ──
+export const saveDiaperToFirestore = async (record) => {
+  try {
+    await setDoc(doc(db, 'diaper_records', record.id), {
+      userId: USER_ID,
+      date: record.date,
+      time: record.time || '',
+      type: record.type || 'wet', // 'wet' | 'poop' | 'both'
+      poopColor: record.poopColor || '',
+      poopTexture: record.poopTexture || '',
+      note: record.note || '',
+      createdAt: new Date().toISOString(),
+    });
+  } catch (e) { notifyWriteError('save diaper', e); }
+};
+
+export const loadDiapersFromFirestore = async () => {
+  try {
+    const snap = await getDocs(collection(db, 'diaper_records'));
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    data.sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00')));
+    return data;
+  } catch (e) { console.warn('Firestore load diaper:', e.message); return null; }
+};
+
+export const deleteDiaperFromFirestore = async (id) => {
+  try { await deleteDoc(doc(db, 'diaper_records', id)); } catch (e) { notifyWriteError('delete diaper', e); }
+};
+
 // ── Blood Pressure ──
 export const saveBloodPressureToFirestore = async (record) => {
   try {

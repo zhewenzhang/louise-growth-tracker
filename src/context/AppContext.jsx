@@ -13,6 +13,9 @@ import {
   saveBloodPressureToFirestore, loadBloodPressureFromFirestore, deleteBloodPressureFromFirestore,
   saveMedicationToFirestore, loadMedicationsFromFirestore, deleteMedicationFromFirestore,
   saveDoctorVisitToFirestore, loadDoctorVisitsFromFirestore, deleteDoctorVisitFromFirestore,
+  saveTemperatureToFirestore, loadTemperaturesFromFirestore, deleteTemperatureFromFirestore,
+  saveSleepToFirestore, loadSleepFromFirestore, deleteSleepFromFirestore,
+  saveDiaperToFirestore, loadDiapersFromFirestore, deleteDiaperFromFirestore,
   subscribeToUser, subscribeToCollection,
   saveBatchToFirestore, deleteBatchFromFirestore, subscribeToBatches, uploadBatchImage,
 } from '../services/firestoreService';
@@ -28,6 +31,9 @@ export const AppProvider = ({ children }) => {
   const [milestones, setMilestones] = useLocalStorage('louise_milestones', []);
   const [diaryEntries, setDiaryEntries] = useLocalStorage('louise_diary', []);
   const [bpRecords, setBpRecords] = useLocalStorage('louise_blood_pressure', []);
+  const [tempRecords, setTempRecords] = useLocalStorage('louise_temperature', []);
+  const [sleepRecords, setSleepRecords] = useLocalStorage('louise_sleep', []);
+  const [diaperRecords, setDiaperRecords] = useLocalStorage('louise_diaper', []);
   const [medications, setMedications] = useLocalStorage('louise_medications', []);
   const [doctorVisits, setDoctorVisits] = useLocalStorage('louise_doctor_visits', []);
   const [feedingBatches, setFeedingBatches] = useLocalStorage('louise_feeding_batches', []);
@@ -252,6 +258,24 @@ export const AppProvider = ({ children }) => {
           localStorage.setItem('louise_blood_pressure', JSON.stringify(data));
           markLoaded();
         }, (a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00'))));
+
+        unsubscribers.push(subscribeToCollection('temperature_records', (data) => {
+          setTempRecords(data);
+          localStorage.setItem('louise_temperature', JSON.stringify(data));
+          markLoaded();
+        }, (a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00'))));
+
+        unsubscribers.push(subscribeToCollection('sleep_records', (data) => {
+          setSleepRecords(data);
+          localStorage.setItem('louise_sleep', JSON.stringify(data));
+          markLoaded();
+        }, (a, b) => new Date(b.date + 'T' + (b.startTime || '00:00')) - new Date(a.date + 'T' + (a.startTime || '00:00'))));
+
+        unsubscribers.push(subscribeToCollection('diaper_records', (data) => {
+          setDiaperRecords(data);
+          localStorage.setItem('louise_diaper', JSON.stringify(data));
+          markLoaded();
+        }, (a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00'))));
 
         unsubscribers.push(subscribeToCollection('medications', (data) => {
           setMedications(data);
@@ -582,6 +606,97 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // Temperature (體溫/發燒)
+  const addTempRecord = (r) => {
+    const record = { ...r, id: r.id || genId() };
+    setTempRecords(prev => [record, ...prev]);
+    saveTemperatureToFirestore(record);
+  };
+  const deleteTempRecord = (id) => {
+    setTempRecords(prev => prev.filter(r => r.id !== id));
+    deleteTemperatureFromFirestore(id);
+  };
+
+  // Sleep (睡眠)
+  const addSleepRecord = (r) => {
+    const record = { ...r, id: r.id || genId() };
+    setSleepRecords(prev => [record, ...prev]);
+    saveSleepToFirestore(record);
+  };
+  const deleteSleepRecord = (id) => {
+    setSleepRecords(prev => prev.filter(r => r.id !== id));
+    deleteSleepFromFirestore(id);
+  };
+
+  // Diaper (尿布/排泄)
+  const addDiaperRecord = (r) => {
+    const record = { ...r, id: r.id || genId() };
+    setDiaperRecords(prev => [record, ...prev]);
+    saveDiaperToFirestore(record);
+  };
+  const deleteDiaperRecord = (id) => {
+    setDiaperRecords(prev => prev.filter(r => r.id !== id));
+    deleteDiaperFromFirestore(id);
+  };
+
+  // 匯出 CSV 健康報告
+  const exportCSV = (type = 'all') => {
+    let csvRows = [];
+    if (type === 'all' || type === 'growth') {
+      csvRows.push(['--- 成長與奶量記錄 ---']);
+      csvRows.push(['ID', '日期', '時間', '類型', '數值', '單位', '母乳(ml)', '配方奶(ml)', '備註']);
+      growthRecords.forEach(r => {
+        csvRows.push([
+          r.id, r.date, r.time || '', r.type, r.value || '', r.unit || '',
+          r.breastMilk || 0, r.formula || 0, `"${(r.note || '').replace(/"/g, '""')}"`
+        ]);
+      });
+      csvRows.push([]);
+    }
+    if (type === 'all' || type === 'temperature') {
+      csvRows.push(['--- 體溫與發燒記錄 ---']);
+      csvRows.push(['ID', '日期', '時間', '體溫(°C)', '狀態', '退燒藥名稱', '備註']);
+      tempRecords.forEach(r => {
+        csvRows.push([
+          r.id, r.date, r.time || '', r.temperature, r.feverStatus || '',
+          `"${(r.medicationName || '').replace(/"/g, '""')}"`, `"${(r.note || '').replace(/"/g, '""')}"`
+        ]);
+      });
+      csvRows.push([]);
+    }
+    if (type === 'all' || type === 'sleep') {
+      csvRows.push(['--- 睡眠記錄 ---']);
+      csvRows.push(['ID', '日期', '開始時間', '結束時間', '時長(分鐘)', '品質', '備註']);
+      sleepRecords.forEach(r => {
+        csvRows.push([
+          r.id, r.date, r.startTime || '', r.endTime || '', r.durationMinutes || 0,
+          r.quality || '', `"${(r.note || '').replace(/"/g, '""')}"`
+        ]);
+      });
+      csvRows.push([]);
+    }
+    if (type === 'all' || type === 'diaper') {
+      csvRows.push(['--- 尿布/排泄記錄 ---']);
+      csvRows.push(['ID', '日期', '時間', '類型', '便便顏色', '便便質地', '備註']);
+      diaperRecords.forEach(r => {
+        csvRows.push([
+          r.id, r.date, r.time || '', r.type, r.poopColor || '',
+          r.poopTexture || '', `"${(r.note || '').replace(/"/g, '""')}"`
+        ]);
+      });
+      csvRows.push([]);
+    }
+
+    const csvContent = '\uFEFF' + csvRows.map(e => e.join(',')).join('\n'); // 帶 BOM 防止 Excel 簡繁中文亂碼
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `louise-${type}-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (!loaded) {
     return (
       <div style={{
@@ -603,10 +718,13 @@ export const AppProvider = ({ children }) => {
       milestones, addMilestone, deleteMilestone,
       diaryEntries, addDiaryEntry, deleteDiaryEntry,
       bpRecords, addBpRecord, deleteBpRecord,
+      tempRecords, addTempRecord, deleteTempRecord,
+      sleepRecords, addSleepRecord, deleteSleepRecord,
+      diaperRecords, addDiaperRecord, deleteDiaperRecord,
       medications, addMedication, updateMedication, deleteMedication,
       doctorVisits, addDoctorVisit, updateDoctorVisit, deleteDoctorVisit,
       feedingBatches, importFeedingBatch, deleteFeedingBatch,
-      exportData, importData,
+      exportData, importData, exportCSV,
       firestoreStatus,
       writeError,
     }}>
