@@ -6,6 +6,7 @@ import { genId } from '../utils/id';
 import {
   saveUserToFirestore, loadUserFromFirestore,
   saveGrowthToFirestore, loadGrowthFromFirestore, deleteGrowthFromFirestore,
+  saveFeedingToFirestore, loadFeedingsFromFirestore, deleteFeedingFromFirestore, subscribeToFeedings,
   saveVaccinesToFirestore, loadVaccinesFromFirestore, deleteVaccineFromFirestore,
   saveMilestoneToFirestore, loadMilestonesFromFirestore, deleteMilestoneFromFirestore,
   saveDiaryToFirestore, loadDiaryFromFirestore, deleteDiaryFromFirestore,
@@ -190,11 +191,29 @@ export const AppProvider = ({ children }) => {
           markLoaded();
         }));
 
-        unsubscribers.push(subscribeToCollection('growth_records', (data) => {
-          setGrowthRecords(data);
-          localStorage.setItem('louise_growth', JSON.stringify(data));
+        let currentGrowth = [];
+        let currentFeedings = [];
+
+        const updateCombinedGrowth = () => {
+          const combinedMap = new Map();
+          currentGrowth.forEach(r => combinedMap.set(r.id, r));
+          currentFeedings.forEach(r => combinedMap.set(r.id, r));
+          const sorted = Array.from(combinedMap.values());
+          sorted.sort((a, b) => new Date(a.date) - new Date(b.date));
+          setGrowthRecords(sorted);
+          localStorage.setItem('louise_growth', JSON.stringify(sorted));
           markLoaded();
-        }, (a, b) => new Date(a.date) - new Date(b.date)));
+        };
+
+        unsubscribers.push(subscribeToCollection('growth_records', (data) => {
+          currentGrowth = data;
+          updateCombinedGrowth();
+        }));
+
+        unsubscribers.push(subscribeToFeedings((data) => {
+          currentFeedings = data;
+          updateCombinedGrowth();
+        }));
 
         unsubscribers.push(subscribeToCollection('vaccines', (data) => {
           // 不再強制重算 dueDate（避免覆蓋手動編輯）
@@ -266,21 +285,37 @@ export const AppProvider = ({ children }) => {
     };
   }, []);
 
-  // Growth
+  // Growth & Feeding
   const addGrowthRecord = (r) => {
     const record = { ...r, id: r.id || genId() };
     setGrowthRecords(prev => [...prev, record]);
-    saveGrowthToFirestore(record);
+    if (record.type === 'feeding') {
+      saveFeedingToFirestore(record);
+    } else {
+      saveGrowthToFirestore(record);
+    }
   };
   const deleteGrowthRecord = (id) => {
+    const target = growthRecords.find(r => r.id === id);
     setGrowthRecords(prev => prev.filter(r => r.id !== id));
-    deleteGrowthFromFirestore(id);
+    if (target?.type === 'feeding') {
+      deleteFeedingFromFirestore(id);
+    } else {
+      deleteGrowthFromFirestore(id);
+      deleteFeedingFromFirestore(id); // 保險：全網相容
+    }
   };
   const updateGrowthRecord = (id, updates) => {
     setGrowthRecords(prev => {
       const updated = prev.map(r => r.id === id ? { ...r, ...updates } : r);
       const target = updated.find(r => r.id === id);
-      if (target) saveGrowthToFirestore(target);
+      if (target) {
+        if (target.type === 'feeding') {
+          saveFeedingToFirestore(target);
+        } else {
+          saveGrowthToFirestore(target);
+        }
+      }
       return updated;
     });
   };
@@ -444,7 +479,7 @@ export const AppProvider = ({ children }) => {
     });
 
     setGrowthRecords(prev => [...prev, ...newRecords]);
-    newRecords.forEach(r => saveGrowthToFirestore(r));
+    newRecords.forEach(r => saveFeedingToFirestore(r));
 
     // 2. 上傳原圖到 Storage（可選）
     let imageUrl = '';

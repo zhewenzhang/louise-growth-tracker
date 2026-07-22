@@ -50,7 +50,7 @@ export const loadUserFromFirestore = async () => {
   return null;
 };
 
-// ── Growth Records ──
+// ── Growth Records (Weight, Height, Head, Chest) ──
 export const saveGrowthToFirestore = async (record) => {
   try {
     const data = {
@@ -61,16 +61,7 @@ export const saveGrowthToFirestore = async (record) => {
       unit: record.unit,
       createdAt: new Date().toISOString(),
     };
-    // 奶量記錄附帶時間
     if (record.time) data.time = record.time;
-    // 母乳/配方奶明細（即使是 0 也明確存，避免後續判斷錯誤）
-    if (record.type === 'feeding') {
-      data.breastMilk = Number(record.breastMilk) || 0;
-      data.formula = Number(record.formula) || 0;
-    } else {
-      if (record.breastMilk !== undefined) data.breastMilk = record.breastMilk;
-      if (record.formula !== undefined) data.formula = record.formula;
-    }
     await setDoc(doc(db, 'growth_records', record.id), data);
   } catch (e) { notifyWriteError('save growth', e); }
 };
@@ -79,8 +70,10 @@ export const loadGrowthFromFirestore = async () => {
   try {
     const snap = await getDocs(collection(db, 'growth_records'));
     const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    data.sort((a, b) => new Date(a.date) - new Date(b.date));
-    return data;
+    // 只保留身高、體重、頭圍、胸圍記錄
+    const filtered = data.filter(d => d.type !== 'feeding');
+    filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+    return filtered;
   } catch (e) {
     console.error('🔥 Firestore load growth FAILED:', e.code, e.message, e);
     return null;
@@ -89,6 +82,49 @@ export const loadGrowthFromFirestore = async () => {
 
 export const deleteGrowthFromFirestore = async (id) => {
   try { await deleteDoc(doc(db, 'growth_records', id)); } catch (e) { notifyWriteError('delete growth', e); }
+};
+
+// ── Feeding Records (独立高频集合) ──
+export const saveFeedingToFirestore = async (record) => {
+  try {
+    const data = {
+      userId: USER_ID,
+      date: record.date,
+      time: record.time || '',
+      type: 'feeding',
+      breastMilk: Number(record.breastMilk) || 0,
+      formula: Number(record.formula) || 0,
+      value: (Number(record.breastMilk) || 0) + (Number(record.formula) || 0),
+      unit: 'ml',
+      note: record.note || '',
+      batchId: record.batchId || null,
+      createdAt: record.createdAt || new Date().toISOString(),
+    };
+    await setDoc(doc(db, 'feeding_records', record.id), data);
+  } catch (e) { notifyWriteError('save feeding', e); }
+};
+
+export const loadFeedingsFromFirestore = async () => {
+  try {
+    const snap = await getDocs(collection(db, 'feeding_records'));
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    data.sort((a, b) => {
+      if (a.date === b.date && a.time && b.time) return a.time.localeCompare(b.time);
+      return new Date(a.date) - new Date(b.date);
+    });
+    return data;
+  } catch (e) {
+    console.warn('🔥 Firestore load feedings:', e.message);
+    return null;
+  }
+};
+
+export const deleteFeedingFromFirestore = async (id) => {
+  try {
+    // 兼顧舊版 growth_records 裡的 feeding 和新版 feeding_records
+    await deleteDoc(doc(db, 'feeding_records', id));
+    await deleteDoc(doc(db, 'growth_records', id));
+  } catch (e) { notifyWriteError('delete feeding', e); }
 };
 
 // ── Vaccines ──
@@ -304,7 +340,7 @@ export const subscribeToUser = (callback) => {
 };
 
 /**
- * 訂閱整�?collection
+ * 訂閱整?collection
  * @param colName collection 名稱
  * @param sortFn 可選排序函數
  * @returns unsubscribe function
@@ -317,6 +353,44 @@ export const subscribeToCollection = (colName, callback, sortFn) => {
   }, (err) => {
     console.warn(`🔥 subscribe ${colName} error:`, err.message);
   });
+};
+
+/**
+ * 訂閱喂奶記錄（兼顧新舊 Collection 平滑過渡）
+ */
+export const subscribeToFeedings = (callback) => {
+  let legacyData = [];
+  let newData = [];
+
+  const mergeAndEmit = () => {
+    const map = new Map();
+    // 優先保留新 collection 的資料
+    legacyData.forEach(item => map.set(item.id, item));
+    newData.forEach(item => map.set(item.id, item));
+    const merged = Array.from(map.values());
+    merged.sort((a, b) => {
+      if (a.date === b.date && a.time && b.time) return a.time.localeCompare(b.time);
+      return new Date(a.date) - new Date(b.date);
+    });
+    callback(merged);
+  };
+
+  const unsubNew = onSnapshot(collection(db, 'feeding_records'), (snap) => {
+    newData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    mergeAndEmit();
+  }, (err) => console.warn('🔥 subscribe feeding_records error:', err.message));
+
+  const unsubLegacy = onSnapshot(collection(db, 'growth_records'), (snap) => {
+    legacyData = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(d => d.type === 'feeding');
+    mergeAndEmit();
+  }, (err) => console.warn('🔥 subscribe legacy growth feeding error:', err.message));
+
+  return () => {
+    unsubNew();
+    unsubLegacy();
+  };
 };
 
 
