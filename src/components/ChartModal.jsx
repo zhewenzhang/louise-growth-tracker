@@ -85,19 +85,76 @@ const ChartModal = ({ metric, records, user, onClose }) => {
   const whoDatasets = useMemo(() => {
     if (!whoRef) return [];
     const lastBabyX = babyPoints[babyPoints.length-1]?.x ?? 4;
-    // WHO 線結束於：寶寶最大週 +1，但不超過 12（資料上限），且至少到 4 週確保有可見線段
     const whoEnd = Math.min(12, Math.max(4, Math.ceil(lastBabyX) + 1));
     const pts = [];
     for (let w = 0; w <= whoEnd; w += 0.25) pts.push(parseFloat(w.toFixed(2)));
-    return ['P3','P15','P50','P85','P97'].map(p => ({
-      label: `WHO ${p}`,
-      data: pts.map(w => ({ x: w, y: parseFloat(lerp(whoRef[p], w).toFixed(2)) })),
-      borderColor: p==='P50'?'rgba(45,93,161,0.7)':p==='P15'||p==='P85'?'rgba(150,150,150,0.4)':'rgba(200,200,200,0.35)',
-      backgroundColor:'transparent',
-      borderWidth: p==='P50'?2.5:1.2,
-      borderDash: p==='P50'?[]:[5,5],
-      pointRadius:0, fill:false, tension:0.3,
-    }));
+
+    const p3Data = pts.map(w => ({ x: w, y: parseFloat(lerp(whoRef['P3'], w).toFixed(2)) }));
+    const p15Data = pts.map(w => ({ x: w, y: parseFloat(lerp(whoRef['P15'], w).toFixed(2)) }));
+    const p50Data = pts.map(w => ({ x: w, y: parseFloat(lerp(whoRef['P50'], w).toFixed(2)) }));
+    const p85Data = pts.map(w => ({ x: w, y: parseFloat(lerp(whoRef['P85'], w).toFixed(2)) }));
+    const p97Data = pts.map(w => ({ x: w, y: parseFloat(lerp(whoRef['P97'], w).toFixed(2)) }));
+
+    return [
+      {
+        label: 'P15–P85 (正常健康區)',
+        data: p85Data,
+        borderColor: 'transparent',
+        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+        fill: '-1', // 填充到 p15
+        pointRadius: 0,
+        tension: 0.3,
+      },
+      {
+        label: 'WHO P15',
+        data: p15Data,
+        borderColor: 'rgba(16, 185, 129, 0.4)',
+        borderWidth: 1.5,
+        borderDash: [4, 4],
+        pointRadius: 0,
+        fill: false,
+        tension: 0.3,
+      },
+      {
+        label: 'WHO P50 (標準中位數)',
+        data: p50Data,
+        borderColor: 'rgba(45, 93, 161, 0.85)',
+        borderWidth: 2.5,
+        pointRadius: 0,
+        fill: false,
+        tension: 0.3,
+      },
+      {
+        label: 'WHO P85',
+        data: p85Data,
+        borderColor: 'rgba(245, 158, 11, 0.4)',
+        borderWidth: 1.5,
+        borderDash: [4, 4],
+        pointRadius: 0,
+        fill: false,
+        tension: 0.3,
+      },
+      {
+        label: 'WHO P3 (下限)',
+        data: p3Data,
+        borderColor: 'rgba(239, 68, 68, 0.4)',
+        borderWidth: 1.2,
+        borderDash: [2, 2],
+        pointRadius: 0,
+        fill: false,
+        tension: 0.3,
+      },
+      {
+        label: 'WHO P97 (上限)',
+        data: p97Data,
+        borderColor: 'rgba(239, 68, 68, 0.4)',
+        borderWidth: 1.2,
+        borderDash: [2, 2],
+        pointRadius: 0,
+        fill: false,
+        tension: 0.3,
+      },
+    ];
   }, [whoRef, babyPoints]);
 
   // ===== Y 軸 =====
