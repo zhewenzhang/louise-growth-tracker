@@ -52,6 +52,10 @@ export const loadUserFromFirestore = async () => {
 
 // ── Growth Records (Weight, Height, Head, Chest) ──
 export const saveGrowthToFirestore = async (record) => {
+  if (!record) return;
+  if (record.type === 'feeding') {
+    return saveFeedingToFirestore(record);
+  }
   try {
     const data = {
       userId: USER_ID,

@@ -92,11 +92,12 @@ export const AppProvider = ({ children }) => {
         // 如果 Firestore 完全為空但 localStorage 有資料，把本地資料推上去
         // 之後就完全靠 onSnapshot 即時同步
         const [
-          remoteUser, remoteGrowth, remoteVaccines, remoteMilestones,
+          remoteUser, remoteGrowth, remoteFeedings, remoteVaccines, remoteMilestones,
           remoteDiary, remoteBp, remoteMed, remoteVisits,
         ] = await Promise.all([
           loadUserFromFirestore(),
           loadGrowthFromFirestore(),
+          loadFeedingsFromFirestore(),
           loadVaccinesFromFirestore(),
           loadMilestonesFromFirestore(),
           loadDiaryFromFirestore(),
@@ -122,8 +123,13 @@ export const AppProvider = ({ children }) => {
           return missing.length;
         };
 
+        const allRemoteGrowth = [
+          ...(Array.isArray(remoteGrowth) ? remoteGrowth : []),
+          ...(Array.isArray(remoteFeedings) ? remoteFeedings : []),
+        ];
+
         let rescuedCount = 0;
-        rescuedCount += rescueRecords('louise_growth', remoteGrowth, saveGrowthToFirestore);
+        rescuedCount += rescueRecords('louise_growth', allRemoteGrowth, saveGrowthToFirestore);
         rescuedCount += rescueRecords('louise_milestones', remoteMilestones, saveMilestoneToFirestore);
         rescuedCount += rescueRecords('louise_diary', remoteDiary, saveDiaryToFirestore);
         rescuedCount += rescueRecords('louise_blood_pressure', remoteBp, saveBloodPressureToFirestore);
