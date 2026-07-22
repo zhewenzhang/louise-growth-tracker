@@ -21,9 +21,9 @@ const BabyProfileHeader = ({ user, babyAge, onNavigate }) => {
         )}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
           <span className="badge" style={{ background: 'var(--yellow)', color: '#2d2d2d', fontSize: '0.85rem' }}>
-            👶 {babyAge?.chronological || '計算中...'}
+            👶 {typeof babyAge === 'string' ? babyAge : (babyAge?.chronological || '計算中...')}
           </span>
-          {babyAge?.isPremature && babyAge?.corrected && (
+          {typeof babyAge === 'object' && babyAge?.isPremature && babyAge?.corrected && (
             <span className="badge" style={{ background: '#e0f2fe', color: '#0284c7', fontSize: '0.85rem' }}>
               🍼 矯正 {babyAge.corrected}
             </span>

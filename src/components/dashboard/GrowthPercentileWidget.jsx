@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Line } from 'react-chartjs-2';
 import { useApp } from '../../context/AppContext.jsx';
 import { calcPercentile } from '../../utils/whoPercentile';
 
@@ -51,11 +52,37 @@ const GrowthPercentileWidget = ({ onOpenChart }) => {
     return calcPercentile('headCircumference', latestHead.value, correctedAgeInfo.correctedMonths);
   }, [latestHead, correctedAgeInfo]);
 
+  // 最近 10 筆體重折線圖數據
+  const chartData = useMemo(() => {
+    if (weightRecords.length < 2) return null;
+    const recent = weightRecords.slice(-10);
+    return {
+      labels: recent.map(r => {
+        const d = new Date(r.date);
+        return `${d.getMonth() + 1}/${d.getDate()}`;
+      }),
+      datasets: [{
+        label: '體重 (kg)',
+        data: recent.map(r => r.value),
+        borderColor: '#ff4d4d',
+        backgroundColor: 'rgba(255,77,77,0.08)',
+        borderWidth: 3,
+        pointBackgroundColor: '#ff4d4d',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        tension: 0.3,
+        fill: true,
+      }],
+    };
+  }, [weightRecords]);
+
   return (
     <div className="card space-y-3" style={{ padding: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem' }}>📊 成長發育 (WHO 百分位)</h3>
-        <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>點擊卡片查看曲線</span>
+        <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>點擊卡片查看完整 WHO 曲線 ➔</span>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -122,6 +149,26 @@ const GrowthPercentileWidget = ({ onOpenChart }) => {
           )}
         </div>
       </div>
+
+      {/* 📈 恢復直觀的最近體重趨勢折線圖 */}
+      {chartData && (
+        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px stroke var(--fg)', opacity: 0.95 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.95rem' }}>📈 最近體重趨勢</span>
+          </div>
+          <div style={{ height: '160px' }}>
+            <Line data={chartData} options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { ticks: { color: '#999', font: { family: 'Patrick Hand' } } },
+                y: { ticks: { color: '#999', font: { family: 'Inter' } } },
+              },
+            }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

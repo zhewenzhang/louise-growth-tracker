@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { WHO_WEEKLY } from '../data/whoData';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 const BABY_COLORS = { weight: '#ff4d4d', height: '#2d5da1', headCircumference: '#2d7d46', chestCircumference: '#e67e22', feeding: '#e91e63' };
 const LABELS = { weight: '體重', height: '身高', headCircumference: '頭圍', chestCircumference: '胸圍', feeding: '奶量' };
