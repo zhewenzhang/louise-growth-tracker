@@ -74,10 +74,9 @@ export const loadGrowthFromFirestore = async () => {
   try {
     const snap = await getDocs(collection(db, 'growth_records'));
     const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    // 只保留身高、體重、頭圍、胸圍記錄
-    const filtered = data.filter(d => d.type !== 'feeding');
-    filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
-    return filtered;
+    // 保留所有記錄（包含原始成長與歷史奶量記錄），不進行 type !== 'feeding' 过滤
+    data.sort((a, b) => new Date(a.date) - new Date(b.date));
+    return data;
   } catch (e) {
     console.error('🔥 Firestore load growth FAILED:', e.code, e.message, e);
     return null;

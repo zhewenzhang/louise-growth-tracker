@@ -230,8 +230,23 @@ export const AppProvider = ({ children }) => {
 
         const updateCombinedGrowth = () => {
           const combinedMap = new Map();
-          (Array.isArray(currentGrowth) ? currentGrowth : []).forEach(r => r && combinedMap.set(r.id, r));
-          (Array.isArray(currentFeedings) ? currentFeedings : []).forEach(r => r && combinedMap.set(r.id, r));
+          (Array.isArray(currentGrowth) ? currentGrowth : []).forEach(r => {
+            if (r) combinedMap.set(r.id, r);
+          });
+          (Array.isArray(currentFeedings) ? currentFeedings : []).forEach(r => {
+            if (!r) return;
+            const existing = combinedMap.get(r.id);
+            const rVal = Number(r.value) || (Number(r.breastMilk) || 0) + (Number(r.formula) || 0);
+            const exVal = existing ? (Number(existing.value) || Number(existing.amount) || (Number(existing.breastMilk) || 0) + (Number(existing.formula) || 0)) : 0;
+
+            if (rVal === 0 && exVal > 0) {
+              const healedRecord = { ...existing, ...r, value: exVal };
+              combinedMap.set(r.id, healedRecord);
+              saveFeedingToFirestore(healedRecord);
+            } else {
+              combinedMap.set(r.id, { ...existing, ...r, value: rVal || exVal });
+            }
+          });
           const sorted = Array.from(combinedMap.values());
           sorted.sort((a, b) => new Date(a.date) - new Date(b.date));
           setGrowthRecords(sorted);
