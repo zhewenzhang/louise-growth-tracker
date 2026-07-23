@@ -8,6 +8,7 @@ import Health from './components/pages/Health';
 import Memories from './components/pages/Memories';
 import Settings from './components/pages/Settings';
 import LockScreen from './components/LockScreen';
+import QuickAddFAB from './components/QuickAddFAB';
 import { hasPinSet, isUnlocked } from './utils/pinLock';
 
 const navPages = [
@@ -84,6 +85,9 @@ const AppContent = () => {
       <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 'calc(94px + env(safe-area-inset-bottom, 0px))' }}>
         <ActivePage onNavigate={handleNavigate} {...pageParams} />
       </div>
+
+      {/* ⚡ 全局快捷加號按鈕 (FAB) */}
+      <QuickAddFAB />
 
       {/* Bottom navigation — hand-drawn style with Safe Area */}
       <nav style={{

@@ -82,21 +82,34 @@ const MedicationPanel = () => {
                   </div>
                 ) : (
                   /* ── 顯示模式 ── */
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem' }}>💊 {r.name}</h4>
                       <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7 }}>
                         {r.dose && `${r.dose}`}{r.frequency && ` · ${r.frequency}`}
                       </p>
-                      {r.reason && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.5 }}>原因：{r.reason}</p>}
-                      {r.note && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.5 }}>備註：{r.note}</p>}
+                      {r.reason && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.55 }}>原因：{r.reason}</p>}
+                      {r.note && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.55 }}>備註：{r.note}</p>}
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5 }}>{r.date}</p>
-                      {r.time && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5 }}>{r.time}</p>}
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button onClick={() => { setEditMedId(r.id); setEditMedForm({ date: r.date, time: r.time, name: r.name, dose: r.dose, frequency: r.frequency, reason: r.reason, note: r.note }); }} className="btn-sm" style={{ fontSize: '0.7rem' }}>✏️</button>
-                        <button onClick={() => deleteMedication(r.id)} className="btn-sm" style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>🗑️</button>
+                    <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, paddingRight: '2px' }}>
+                      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5 }}>{r.date} {r.time || ''}</p>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                        <button
+                          onClick={() => { setEditMedId(r.id); setEditMedForm({ date: r.date, time: r.time, name: r.name, dose: r.dose, frequency: r.frequency, reason: r.reason, note: r.note }); }}
+                          className="btn-sm"
+                          style={{ width: '34px', height: '34px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', flexShrink: 0 }}
+                          title="編輯"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => { if (window.confirm(`確定刪除用藥記錄「${r.name}」？`)) deleteMedication(r.id); }}
+                          className="btn-sm"
+                          style={{ width: '34px', height: '34px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: '0.85rem', flexShrink: 0 }}
+                          title="刪除"
+                        >
+                          🗑️
+                        </button>
                       </div>
                     </div>
                   </div>

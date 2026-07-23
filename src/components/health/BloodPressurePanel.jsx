@@ -81,10 +81,18 @@ const BloodPressurePanel = () => {
             })()} options={{
               responsive: true,
               maintainAspectRatio: false,
-              plugins: { legend: { labels: { font: { family: 'Patrick Hand' } } } },
+              plugins: { legend: { labels: { font: { family: 'Patrick Hand', size: 12 } } } },
               scales: {
-                x: { ticks: { color: '#999', font: { family: 'Patrick Hand' } } },
-                y: { ticks: { color: '#999', font: { family: 'Inter' } } },
+                x: {
+                  ticks: {
+                    color: '#888',
+                    font: { family: 'Patrick Hand', size: 10 },
+                    maxRotation: 0,
+                    autoSkip: true,
+                    maxTicksLimit: 6,
+                  }
+                },
+                y: { ticks: { color: '#888', font: { family: 'Inter', size: 11 } } },
               },
             }} />
           </div>
@@ -127,10 +135,19 @@ const BloodPressurePanel = () => {
                   <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.5, marginLeft: 6 }}>mmHg</span>
                   {r.pulse > 0 && <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.5, marginLeft: 8 }}>❤️{r.pulse}</span>}
                 </div>
-                <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.5 }}>
-                  {r.date} {r.time}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', opacity: 0.5 }}>
+                    {r.date} {r.time}
+                  </span>
+                  <button
+                    onClick={() => { if (window.confirm('確定刪除此血壓記錄？')) deleteBpRecord(r.id); }}
+                    className="btn-sm"
+                    style={{ width: '32px', height: '32px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: '0.85rem', flexShrink: 0 }}
+                    title="刪除"
+                  >
+                    🗑️
+                  </button>
                 </div>
-                <button onClick={() => deleteBpRecord(r.id)} className="btn-sm" style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>🗑️</button>
               </div>
             ))}
           </div>

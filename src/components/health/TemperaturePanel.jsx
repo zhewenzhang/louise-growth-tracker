@@ -201,7 +201,14 @@ const TemperaturePanel = () => {
                     </p>
                     {r.note && <p style={{ fontSize: '0.8rem', opacity: 0.8, marginTop: '2px' }}>📝 {r.note}</p>}
                   </div>
-                  <button onClick={() => deleteTempRecord(r.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
+                  <button
+                    onClick={() => { if (window.confirm('確定刪除此體溫記錄？')) deleteTempRecord(r.id); }}
+                    className="btn-sm"
+                    style={{ width: '34px', height: '34px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontSize: '0.85rem', flexShrink: 0, marginLeft: 8 }}
+                    title="刪除"
+                  >
+                    🗑️
+                  </button>
                 </div>
               );
             })}
