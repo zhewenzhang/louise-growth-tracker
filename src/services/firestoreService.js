@@ -90,15 +90,21 @@ export const deleteGrowthFromFirestore = async (id) => {
 
 // ── Feeding Records (独立高频集合) ──
 export const saveFeedingToFirestore = async (record) => {
+  if (!record) return;
   try {
+    const bm = Number(record.breastMilk) || 0;
+    const fm = Number(record.formula) || 0;
+    // 只有當明確填寫了母乳或配方奶 (> 0) 時，才重新加和；否則保留原有的 record.value (防止歷史記錄被清零)
+    const val = (bm > 0 || fm > 0) ? (bm + fm) : (Number(record.value) || Number(record.amount) || 0);
+
     const data = {
       userId: USER_ID,
       date: record.date,
       time: record.time || '',
       type: 'feeding',
-      breastMilk: Number(record.breastMilk) || 0,
-      formula: Number(record.formula) || 0,
-      value: (Number(record.breastMilk) || 0) + (Number(record.formula) || 0),
+      breastMilk: bm,
+      formula: fm,
+      value: val,
       unit: 'ml',
       note: record.note || '',
       batchId: record.batchId || null,

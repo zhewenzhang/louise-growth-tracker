@@ -128,6 +128,28 @@ export const AppProvider = ({ children }) => {
           ...(Array.isArray(remoteFeedings) ? remoteFeedings : []),
         ];
 
+        // ════════════════════════════════════════════════════════
+        // 數據自癒修復：如果雲端奶量記錄 value 被誤清零 (0)，但本地有正確數值，自動修復推送
+        // ════════════════════════════════════════════════════════
+        try {
+          const localGrowth = JSON.parse(localStorage.getItem('louise_growth') || '[]');
+          if (Array.isArray(localGrowth) && localGrowth.length > 0 && Array.isArray(remoteFeedings)) {
+            const remoteMap = new Map(remoteFeedings.map(r => [r.id, r]));
+            localGrowth.forEach(lr => {
+              if (lr && lr.type === 'feeding') {
+                const lVal = Number(lr.value) || Number(lr.amount) || (Number(lr.breastMilk) || 0) + (Number(lr.formula) || 0);
+                const rr = remoteMap.get(lr.id);
+                if (lVal > 0 && rr && Number(rr.value) === 0) {
+                  console.log(`🩹 自動修復奶量記錄 ${lr.id}: 恢復數值 ${lVal} ml`);
+                  saveFeedingToFirestore({ ...lr, value: lVal });
+                }
+              }
+            });
+          }
+        } catch (e) {
+          console.warn('奶量數據自癒修復失敗:', e);
+        }
+
         let rescuedCount = 0;
         rescuedCount += rescueRecords('louise_growth', allRemoteGrowth, saveGrowthToFirestore);
         rescuedCount += rescueRecords('louise_milestones', remoteMilestones, saveMilestoneToFirestore);

@@ -499,7 +499,7 @@ const Growth = () => {
                         {record.type === 'feeding' ? (() => {
                           const bm = Number(record.breastMilk) || 0;
                           const fm = Number(record.formula) || 0;
-                          const total = Number(record.value) || 0;
+                          const total = Number(record.value) || Number(record.amount) || (bm + fm) || 0;
                           const hasDetail = bm > 0 || fm > 0;
                           return (
                             <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.15rem', fontWeight: 600 }}>
@@ -508,7 +508,7 @@ const Growth = () => {
                                   {bm > 0 && `🤱${bm}`}
                                   {bm > 0 && fm > 0 && ' + '}
                                   {fm > 0 && `🍼${fm}`}
-                                  {(bm + fm !== total) && (
+                                  {(bm + fm !== total && total > 0) && (
                                     <span style={{ fontSize: '0.85rem', opacity: 0.6 }}> = {total} ml</span>
                                   )}
                                   {(bm + fm === total) && (
