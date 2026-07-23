@@ -19,12 +19,12 @@ const BabyProfileHeader = ({ user, babyAge, onNavigate }) => {
             {user.name}
           </p>
         )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start', marginTop: 6 }}>
-          <span className="badge" style={{ background: 'var(--yellow)', color: '#2d2d2d', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
+          <span className="badge" style={{ background: 'var(--yellow)', color: '#2d2d2d', fontSize: '0.78rem', padding: '2px 8px', whiteSpace: 'nowrap', flexShrink: 0 }}>
             👶 {typeof babyAge === 'string' ? babyAge : (babyAge?.chronological || '計算中...')}
           </span>
           {typeof babyAge === 'object' && babyAge?.isPremature && babyAge?.corrected && (
-            <span className="badge" style={{ background: '#e0f2fe', color: '#0284c7', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+            <span className="badge" style={{ background: '#e0f2fe', color: '#0284c7', fontSize: '0.78rem', padding: '2px 8px', whiteSpace: 'nowrap', flexShrink: 0 }}>
               🍼 矯正 {babyAge.corrected}
             </span>
           )}

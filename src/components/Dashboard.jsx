@@ -54,10 +54,20 @@ const Dashboard = ({ onNavigate }) => {
 
       {/* 5. 最新里程碑與疫苗概況 */}
       <div className="grid grid-cols-2 gap-3">
-        <div onClick={() => onNavigate?.('memories')} className="card cursor-pointer hover:opacity-90 transition-opacity" style={{ padding: '12px 14px' }}>
+        <div onClick={() => onNavigate?.('memories')} className="card cursor-pointer hover:opacity-90 transition-opacity" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <span style={{ fontSize: '0.85rem', opacity: 0.7 }}>🎉 最新里程碑</span>
           {latestMilestone ? (
-            <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', marginTop: 4 }}>
+            <p style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: '0.98rem',
+              lineHeight: 1.35,
+              marginTop: 4,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
               {latestMilestone.emoji} {latestMilestone.title}
             </p>
           ) : (
@@ -65,10 +75,10 @@ const Dashboard = ({ onNavigate }) => {
           )}
         </div>
 
-        <div onClick={() => onNavigate?.('health')} className="card cursor-pointer hover:opacity-90 transition-opacity" style={{ padding: '12px 14px' }}>
+        <div onClick={() => onNavigate?.('health')} className="card cursor-pointer hover:opacity-90 transition-opacity" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <span style={{ fontSize: '0.85rem', opacity: 0.7 }}>💉 疫苗進度</span>
-          <p style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 700, marginTop: 4 }}>
-            {vaccineCompleted} / {vaccineRecords.length} <span style={{ fontSize: '0.8rem', fontWeight: 400 }}>劑</span>
+          <p style={{ fontFamily: 'var(--font-number)', fontSize: '1.4rem', fontWeight: 700, marginTop: 4, lineHeight: 1.2 }}>
+            {vaccineCompleted} / {vaccineRecords.length} <span style={{ fontSize: '0.85rem', fontWeight: 400, opacity: 0.8, marginLeft: '2px' }}>劑</span>
           </p>
         </div>
       </div>
