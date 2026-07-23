@@ -10,13 +10,14 @@ const EMOJI_LIST = [
 ];
 
 const Memories = () => {
-  const { user, milestones, diaryEntries, growthRecords, vaccineRecords, medications, doctorVisits, addMilestone, deleteMilestone, addDiaryEntry, deleteDiaryEntry } = useApp();
+  const { user, milestones, diaryEntries, growthRecords, vaccineRecords, sleepRecords, diaperRecords, medications, doctorVisits, addMilestone, deleteMilestone, addDiaryEntry, deleteDiaryEntry } = useApp();
   const [activeTab, setActiveTab] = useState('milestones');
+  const [selectedBadge, setSelectedBadge] = useState(null);
 
   // 計算徽章狀態
   const badges = useMemo(() => calcBadgeStatus({
-    user, milestones, diaryEntries, growthRecords, vaccineRecords, medications, doctorVisits,
-  }), [user, milestones, diaryEntries, growthRecords, vaccineRecords, medications, doctorVisits]);
+    user, milestones, diaryEntries, growthRecords, vaccineRecords, sleepRecords, diaperRecords, medications, doctorVisits,
+  }), [user, milestones, diaryEntries, growthRecords, vaccineRecords, sleepRecords, diaperRecords, medications, doctorVisits]);
 
   const unlockedCount = badges.filter(b => b.unlocked).length;
 
@@ -56,27 +57,81 @@ const Memories = () => {
   const sortedDiaries = [...diaryEntries].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   return (
-    <div className="p-4 space-y-5" style={{ paddingBottom: '80px' }}>
-      <h2 className="section-title">🌟 回憶</h2>
+    <div className="p-4 space-y-4" style={{ paddingBottom: '100px' }}>
+      <h2 className="section-title" style={{ marginBottom: '8px' }}>🌟 回憶與成就</h2>
 
-      {/* Tab 切換 */}
-      <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setActiveTab('milestones')} className={`btn ${activeTab === 'milestones' ? 'btn-blue' : ''}`}>
+      {/* 📍 1. 單行三等分 Segmented Control 切換欄 */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        background: 'var(--muted)',
+        padding: '4px',
+        borderRadius: 'var(--wobbly-sm)',
+        border: '2.5px solid var(--fg)',
+        boxShadow: 'var(--shadow-sm)',
+        marginBottom: '16px',
+      }}>
+        <button
+          onClick={() => setActiveTab('milestones')}
+          style={{
+            background: activeTab === 'milestones' ? 'var(--card-bg)' : 'transparent',
+            color: activeTab === 'milestones' ? 'var(--blue)' : 'var(--fg)',
+            fontWeight: activeTab === 'milestones' ? 700 : 400,
+            border: activeTab === 'milestones' ? '2px solid var(--fg)' : 'none',
+            borderRadius: 'var(--wobbly-sm)',
+            padding: '8px 0',
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            boxShadow: activeTab === 'milestones' ? '2px 2px 0px 0px var(--fg)' : 'none',
+            transition: 'all 0.15s ease',
+          }}
+        >
           🎉 里程碑
         </button>
-        <button onClick={() => setActiveTab('diary')} className={`btn ${activeTab === 'diary' ? 'btn-blue' : ''}`}>
+        <button
+          onClick={() => setActiveTab('diary')}
+          style={{
+            background: activeTab === 'diary' ? 'var(--card-bg)' : 'transparent',
+            color: activeTab === 'diary' ? 'var(--blue)' : 'var(--fg)',
+            fontWeight: activeTab === 'diary' ? 700 : 400,
+            border: activeTab === 'diary' ? '2px solid var(--fg)' : 'none',
+            borderRadius: 'var(--wobbly-sm)',
+            padding: '8px 0',
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            boxShadow: activeTab === 'diary' ? '2px 2px 0px 0px var(--fg)' : 'none',
+            transition: 'all 0.15s ease',
+          }}
+        >
           📝 日記
         </button>
-        <button onClick={() => setActiveTab('badges')} className={`btn ${activeTab === 'badges' ? 'btn-blue' : ''}`}>
+        <button
+          onClick={() => setActiveTab('badges')}
+          style={{
+            background: activeTab === 'badges' ? 'var(--card-bg)' : 'transparent',
+            color: activeTab === 'badges' ? 'var(--blue)' : 'var(--fg)',
+            fontWeight: activeTab === 'badges' ? 700 : 400,
+            border: activeTab === 'badges' ? '2px solid var(--fg)' : 'none',
+            borderRadius: 'var(--wobbly-sm)',
+            padding: '8px 0',
+            fontFamily: 'var(--font-body)',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            boxShadow: activeTab === 'badges' ? '2px 2px 0px 0px var(--fg)' : 'none',
+            transition: 'all 0.15s ease',
+          }}
+        >
           🏆 徽章 ({unlockedCount}/{badges.length})
         </button>
       </div>
 
-      {/* ====== 里程碑 Tab (內聯，非內部函數) ====== */}
+      {/* ====== 里程碑 Tab ====== */}
       {activeTab === 'milestones' && (
         <div className="space-y-5">
           <form onSubmit={handleAddMilestone} className="card">
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 12 }}>🎉 新增里程碑</h3>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', marginBottom: 12 }}>🎉 新增里程碑</h3>
             <div className="space-y-3">
               <div>
                 <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>Emoji</label>
@@ -147,22 +202,35 @@ const Memories = () => {
                         zIndex: 1,
                       }} />
 
-                      {/* 日期標籤 */}
-                      <p style={{
-                        fontFamily: 'var(--font-body)', fontSize: '0.75rem', opacity: 0.5,
-                        marginBottom: '4px', marginLeft: '0',
-                      }}>
-                        {new Date(m.date).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
-                      </p>
+                      {/* 📍 5. 時間軸拉開 12px 間距 & 內容卡片 */}
+                      <div style={{ marginLeft: '12px' }}>
+                        <p style={{
+                          fontFamily: 'var(--font-body)', fontSize: '0.78rem', opacity: 0.6,
+                          marginBottom: '4px',
+                        }}>
+                          {new Date(m.date).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
 
-                      {/* 內容卡片 */}
-                      <div className="card-sm" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                        <span style={{ fontSize: '1.8rem', flexShrink: 0 }}>{m.emoji}</span>
-                        <div style={{ flex: 1 }}>
-                          <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem' }}>{m.title}</h4>
-                          {m.note && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.6, marginTop: 2 }}>{m.note}</p>}
+                        <div className="card-sm" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: '1.8rem', flexShrink: 0 }}>{m.emoji}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <h4 style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 700 }}>{m.title}</h4>
+                            {m.note && <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7, marginTop: 2 }}>{m.note}</p>}
+                          </div>
+                          {/* 📍 7. 刪除二次確認 */}
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`確定要刪除里程碑「${m.title}」嗎？此操作無法撤銷。`)) {
+                                deleteMilestone(m.id);
+                              }
+                            }}
+                            className="btn-sm"
+                            style={{ width: '32px', height: '32px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', flexShrink: 0 }}
+                            title="刪除"
+                          >
+                            🗑️
+                          </button>
                         </div>
-                        <button onClick={() => deleteMilestone(m.id)} className="btn-sm" style={{ color: 'var(--accent)', flexShrink: 0 }} title="刪除">🗑️</button>
                       </div>
                     </div>
                   ))}
@@ -173,11 +241,11 @@ const Memories = () => {
         </div>
       )}
 
-      {/* ====== 日記 Tab (內聯，非內部函數) ====== */}
+      {/* ====== 日記 Tab ====== */}
       {activeTab === 'diary' && (
         <div className="space-y-5">
           <form onSubmit={handleAddDiary} className="card">
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', marginBottom: 12 }}>✍️ 寫成長日記</h3>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', marginBottom: 12 }}>✍️ 寫成長日記</h3>
             <div className="space-y-3">
               <div>
                 <label className="block mb-1" style={{ fontFamily: 'var(--font-body)', fontWeight: 700 }}>標題</label>
@@ -212,13 +280,25 @@ const Memories = () => {
                 {sortedDiaries.map(entry => (
                   <div key={entry.id} className="card p-4 animate-in">
                     <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0 pr-2">
                         <h4 style={{ fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: '1.1rem' }}>{entry.title}</h4>
-                        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.6 }}>{entry.date}</p>
+                        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', opacity: 0.6 }}>{entry.date}</p>
                       </div>
-                      <button onClick={() => deleteDiaryEntry(entry.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
+                      {/* 📍 7. 刪除二次確認 */}
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`確定要刪除日記「${entry.title}」嗎？此操作無法撤銷。`)) {
+                            deleteDiaryEntry(entry.id);
+                          }
+                        }}
+                        className="btn-sm"
+                        style={{ width: '32px', height: '32px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', flexShrink: 0 }}
+                        title="刪除"
+                      >
+                        🗑️
+                      </button>
                     </div>
-                    <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.95rem', whiteSpace: 'pre-wrap' }}>{entry.content}</p>
+                    <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.95rem', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{entry.content}</p>
                   </div>
                 ))}
               </div>
@@ -247,10 +327,10 @@ const Memories = () => {
                 transition: 'width 0.5s ease',
               }} />
             </div>
-            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.6, marginTop: 6 }}>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.7, marginTop: 6 }}>
               {unlockedCount === 0 ? '還沒有徽章，繼續加油！' :
                unlockedCount === badges.length ? '🎊 所有徽章都收集到了！' :
-               `已解鎖 ${Math.round(unlockedCount / badges.length * 100)}%`}
+               `已解鎖 ${Math.round(unlockedCount / badges.length * 100)}% 的成就`}
             </p>
           </div>
 
@@ -264,22 +344,96 @@ const Memories = () => {
               <div key={category}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>{CATEGORY_LABELS[category]}</span>
-                  <span style={{ fontSize: '0.85rem', opacity: 0.5, fontWeight: 400 }}>
+                  <span style={{ fontSize: '0.85rem', opacity: 0.6, fontWeight: 400 }}>
                     {categoryUnlocked}/{categoryBadges.length}
                   </span>
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                   {categoryBadges.map(b => (
-                    <div key={b.id} className={`badge-card ${b.unlocked ? 'unlocked' : 'locked'}`}>
+                    <div
+                      key={b.id}
+                      onClick={() => setSelectedBadge(b)}
+                      className={`badge-card ${b.unlocked ? 'unlocked' : 'locked'}`}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <div className="badge-emoji">{b.emoji}</div>
-                      <div className="badge-title">{b.title}</div>
-                      <div className="badge-desc">{b.description}</div>
+                      {/* 📍 2. 增強未解鎖徽章的文字對比度 */}
+                      <div className="badge-title" style={{ color: 'var(--fg)', opacity: b.unlocked ? 1 : 0.9 }}>
+                        {b.title}
+                      </div>
+                      <div className="badge-desc" style={{ color: 'var(--fg)', opacity: b.unlocked ? 0.75 : 0.65 }}>
+                        {b.description}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* 📍 3. 點擊徽章跳出 Popover 顯示【解鎖進度條與說明】 */}
+      {selectedBadge && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 150,
+            background: 'rgba(0, 0, 0, 0.55)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setSelectedBadge(null)}
+        >
+          <div
+            className="card animate-in"
+            style={{
+              width: '100%',
+              maxWidth: '360px',
+              textAlign: 'center',
+              padding: '20px',
+              background: 'var(--card-bg)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '3.2rem', marginBottom: 4 }}>{selectedBadge.emoji}</div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', fontWeight: 700 }}>
+              {selectedBadge.title}
+            </h3>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.9rem', opacity: 0.7, marginTop: 2 }}>
+              {selectedBadge.description}
+            </p>
+
+            <div style={{ marginTop: 14, padding: '12px', background: 'var(--bg)', borderRadius: 'var(--wobbly-sm)', border: '2px solid var(--fg)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontFamily: 'var(--font-body)', fontWeight: 700, marginBottom: 4 }}>
+                <span>{selectedBadge.unlocked ? '🎉 已達成成就' : '🔒 解鎖進度'}</span>
+                <span>{selectedBadge.progress?.percent || 0}%</span>
+              </div>
+              <div style={{ background: 'var(--muted)', height: '10px', borderRadius: '10px', overflow: 'hidden', border: '1.5px solid var(--fg)' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${selectedBadge.progress?.percent || 0}%`,
+                  background: selectedBadge.unlocked ? 'linear-gradient(90deg, #10b981, #34d399)' : 'linear-gradient(90deg, var(--blue), #60a5fa)',
+                  transition: 'width 0.4s ease'
+                }} />
+              </div>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', marginTop: 8, color: selectedBadge.unlocked ? '#10b981' : 'var(--fg)', fontWeight: selectedBadge.unlocked ? 700 : 400 }}>
+                {selectedBadge.progress?.remainingText || (selectedBadge.unlocked ? '已成功解鎖此徽章！' : '尚未滿足解鎖條件')}
+              </p>
+            </div>
+
+            <button
+              className="btn btn-sm w-full"
+              style={{ marginTop: 16 }}
+              onClick={() => setSelectedBadge(null)}
+            >
+              關閉
+            </button>
+          </div>
         </div>
       )}
     </div>
