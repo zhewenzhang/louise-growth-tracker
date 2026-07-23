@@ -14,6 +14,16 @@ const TABS = [
   { id: 'diaper', label: '💩 尿布', unit: '次', showDiaper: true },
 ];
 
+const TAB_COLORS = {
+  weight: '#ff4d4d',
+  height: '#2d5da1',
+  headCircumference: '#8b5cf6',
+  chestCircumference: '#06b6d4',
+  feeding: '#f59e0b',
+  sleep: '#3b82f6',
+  diaper: '#10b981',
+};
+
 const Growth = () => {
   const ctx = useApp();
   const growthRecords = Array.isArray(ctx?.growthRecords) ? ctx.growthRecords : [];
@@ -49,6 +59,24 @@ const Growth = () => {
   const [diaperNote, setDiaperNote] = useState('');
 
   const activeTabInfo = TABS.find(t => t.id === activeTab) || TABS[0];
+  const activeColor = TAB_COLORS[activeTab] || '#2d5da1';
+
+  // 刪除確認防誤觸 UX
+  const handleDeleteSleep = (id) => {
+    if (window.confirm('確定要刪除這筆睡眠記錄嗎？')) {
+      deleteSleepRecord?.(id);
+    }
+  };
+  const handleDeleteDiaper = (id) => {
+    if (window.confirm('確定要刪除這筆尿布記錄嗎？')) {
+      deleteDiaperRecord?.(id);
+    }
+  };
+  const handleDeleteGrowth = (id) => {
+    if (window.confirm('確定要刪除這筆紀錄嗎？')) {
+      deleteGrowthRecord?.(id);
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -134,38 +162,65 @@ const Growth = () => {
     }, { breastMilk: 0, formula: 0, total: 0, count: 0 });
 
   return (
-    <div className="p-4 space-y-5" style={{ paddingBottom: '20px' }}>
+    <div className="p-4 space-y-4" style={{ paddingBottom: '30px' }}>
       <h2 className="section-title">📏 成長與作息追蹤</h2>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => { setActiveTab(tab.id); setValue(''); }}
-            className={`btn-sm ${activeTab === tab.id ? 'btn-blue' : ''}`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Tabs：可滑動單行 / 不卡行的橫向滾動條排版 */}
+      <div style={{
+        display: 'flex',
+        gap: '8px',
+        overflowX: 'auto',
+        paddingBottom: '4px',
+        WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'none',
+      }}>
+        {TABS.map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id); setValue(''); }}
+              className="btn-sm"
+              style={{
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                background: isActive ? activeColor : 'var(--card-bg)',
+                color: isActive ? '#fff' : 'var(--fg)',
+                borderColor: isActive ? activeColor : 'var(--fg)',
+                fontWeight: isActive ? 700 : 400,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* 奶量 今日總計 */}
       {activeTab === 'feeding' && todayFeedingStats.total > 0 && (
-        <div className="sticky-note" style={{ transform: 'rotate(-0.5deg)', textAlign: 'center' }}>
-          <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem' }}>
-            🤱 {todayFeedingStats.breastMilk}ml + 🍼 {todayFeedingStats.formula}ml = <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.5rem', fontWeight: 600, color: 'var(--accent)' }}>{todayFeedingStats.total}</span> ml（{todayFeedingStats.count} 次）
+        <div className="sticky-note" style={{ transform: 'rotate(-0.5deg)', textAlign: 'center', padding: '12px 14px' }}>
+          <p style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', margin: 0 }}>
+            🤱 {todayFeedingStats.breastMilk}ml + 🍼 {todayFeedingStats.formula}ml = <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent)' }}>{todayFeedingStats.total}</span> ml（{todayFeedingStats.count} 次）
           </p>
         </div>
       )}
 
-      {/* 奶量 照片識別匯入按鈕 */}
+      {/* 奶量 照片識別匯入與歷史 - 1:1 平行等寬 */}
       {activeTab === 'feeding' && (
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn" onClick={() => setShowPhotoImport(true)} style={{ flex: 1.5, background: 'var(--blue)', color: '#fff', borderColor: 'var(--blue)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+          <button
+            className="btn"
+            onClick={() => setShowPhotoImport(true)}
+            style={{ background: 'var(--blue)', color: '#fff', borderColor: 'var(--blue)', padding: '8px 10px', fontSize: '0.9rem', minHeight: '42px' }}
+          >
             📷 拍照識別匯入
           </button>
-          <button className="btn" onClick={() => setShowBatchHistory(true)} style={{ flex: 1 }}>
+          <button
+            className="btn"
+            onClick={() => setShowBatchHistory(true)}
+            style={{ padding: '8px 10px', fontSize: '0.9rem', minHeight: '42px' }}
+          >
             📋 匯入歷史
           </button>
         </div>
@@ -222,15 +277,45 @@ const Growth = () => {
               </div>
               <div>
                 <label className="block mb-1 font-bold">類型</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="button" onClick={() => setDiaperType('wet')} className={`btn-sm ${diaperType === 'wet' ? 'btn-blue' : ''}`} style={{ flex: 1 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => setDiaperType('wet')}
+                    className="btn-sm"
+                    style={{
+                      background: diaperType === 'wet' ? 'var(--blue)' : 'var(--card-bg)',
+                      color: diaperType === 'wet' ? '#fff' : 'var(--fg)',
+                      borderColor: diaperType === 'wet' ? 'var(--blue)' : 'var(--fg)',
+                      padding: '4px 6px', fontSize: '0.82rem', whiteSpace: 'nowrap',
+                    }}
+                  >
                     💦 尿尿
                   </button>
-                  <button type="button" onClick={() => setDiaperType('poop')} className={`btn-sm ${diaperType === 'poop' ? 'btn-blue' : ''}`} style={{ flex: 1 }}>
+                  <button
+                    type="button"
+                    onClick={() => setDiaperType('poop')}
+                    className="btn-sm"
+                    style={{
+                      background: diaperType === 'poop' ? 'var(--blue)' : 'var(--card-bg)',
+                      color: diaperType === 'poop' ? '#fff' : 'var(--fg)',
+                      borderColor: diaperType === 'poop' ? 'var(--blue)' : 'var(--fg)',
+                      padding: '4px 6px', fontSize: '0.82rem', whiteSpace: 'nowrap',
+                    }}
+                  >
                     💩 便便
                   </button>
-                  <button type="button" onClick={() => setDiaperType('both')} className={`btn-sm ${diaperType === 'both' ? 'btn-blue' : ''}`} style={{ flex: 1 }}>
-                    💦+💩 都有
+                  <button
+                    type="button"
+                    onClick={() => setDiaperType('both')}
+                    className="btn-sm"
+                    style={{
+                      background: diaperType === 'both' ? 'var(--blue)' : 'var(--card-bg)',
+                      color: diaperType === 'both' ? '#fff' : 'var(--fg)',
+                      borderColor: diaperType === 'both' ? 'var(--blue)' : 'var(--fg)',
+                      padding: '4px 4px', fontSize: '0.78rem', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    💦💩 兩者都有
                   </button>
                 </div>
               </div>
@@ -304,7 +389,13 @@ const Growth = () => {
             </div>
           )}
 
-          <button type="submit" className="btn w-full btn-blue">✅ 新增記錄</button>
+          <button
+            type="submit"
+            className="btn w-full"
+            style={{ background: activeColor, color: '#fff', borderColor: activeColor, fontWeight: 700 }}
+          >
+            ✅ 新增{activeTabInfo.label.replace(/[^一-龥]/g, '')}記錄
+          </button>
         </div>
       </form>
 
@@ -322,20 +413,27 @@ const Growth = () => {
                   if (!r) return null;
                   const dur = Number(r.durationMinutes) || 0;
                   return (
-                    <div key={r.id} className="card p-3 flex justify-between items-center">
-                      <div>
-                        <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
+                    <div key={r.id} className="card flex justify-between items-center" style={{ padding: '8px 12px' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.15rem', fontWeight: 600 }}>
                           🌙 {(dur / 60).toFixed(1)} 小時
                         </span>
-                        <span style={{ fontSize: '0.85rem', marginLeft: 8, opacity: 0.8 }}>
+                        <span style={{ fontSize: '0.8rem', marginLeft: 8, opacity: 0.8 }}>
                           ({r.startTime || ''} ~ {r.endTime || ''})
                         </span>
-                        <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+                        <p style={{ fontSize: '0.78rem', opacity: 0.6, marginTop: 2 }}>
                           📅 {r.date || ''} · {r.quality === 'good' ? '😊 熟睡' : r.quality === 'normal' ? '😐 一般' : '😫 哭鬧'}
                           {r.note && ` · ${r.note}`}
                         </p>
                       </div>
-                      <button onClick={() => deleteSleepRecord?.(r.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
+                      <button
+                        onClick={() => handleDeleteSleep(r.id)}
+                        className="btn-sm"
+                        style={{ color: 'var(--accent)', flexShrink: 0, padding: '4px 8px', marginLeft: '8px' }}
+                        title="刪除"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   );
                 })}
@@ -355,18 +453,25 @@ const Growth = () => {
                 {diaperRecords.map(r => {
                   if (!r) return null;
                   return (
-                    <div key={r.id} className="card p-3 flex justify-between items-center">
-                      <div>
-                        <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600 }}>
-                          {r.type === 'wet' ? '💦 尿尿' : r.type === 'poop' ? '💩 便便' : '💦+💩 都有'}
+                    <div key={r.id} className="card flex justify-between items-center" style={{ padding: '8px 12px' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 600 }}>
+                          {r.type === 'wet' ? '💦 尿尿' : r.type === 'poop' ? '💩 便便' : '💦💩 兩者都有'}
                         </span>
-                        {r.poopColor && <span style={{ fontSize: '0.85rem', marginLeft: 8, opacity: 0.8 }}>{r.poopColor} ({r.poopTexture})</span>}
-                        <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+                        {r.poopColor && <span style={{ fontSize: '0.8rem', marginLeft: 8, opacity: 0.8 }}>{r.poopColor} ({r.poopTexture})</span>}
+                        <p style={{ fontSize: '0.78rem', opacity: 0.6, marginTop: 2 }}>
                           📅 {r.date || ''} {r.time || ''}
                           {r.note && ` · ${r.note}`}
                         </p>
                       </div>
-                      <button onClick={() => deleteDiaperRecord?.(r.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
+                      <button
+                        onClick={() => handleDeleteDiaper(r.id)}
+                        className="btn-sm"
+                        style={{ color: 'var(--accent)', flexShrink: 0, padding: '4px 8px', marginLeft: '8px' }}
+                        title="刪除"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   );
                 })}
@@ -389,15 +494,15 @@ const Growth = () => {
                 {sortedRecords.map(record => {
                   if (!record) return null;
                   return (
-                    <div key={record.id} className="card p-3 flex justify-between items-center animate-in">
-                      <div>
+                    <div key={record.id} className="card flex justify-between items-center animate-in" style={{ padding: '8px 12px' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         {record.type === 'feeding' ? (() => {
                           const bm = Number(record.breastMilk) || 0;
                           const fm = Number(record.formula) || 0;
                           const total = Number(record.value) || 0;
                           const hasDetail = bm > 0 || fm > 0;
                           return (
-                            <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
+                            <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.15rem', fontWeight: 600 }}>
                               {hasDetail ? (
                                 <>
                                   {bm > 0 && `🤱${bm}`}
@@ -416,16 +521,23 @@ const Growth = () => {
                             </span>
                           );
                         })() : (
-                          <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.2rem', fontWeight: 600 }}>
+                          <span style={{ fontFamily: 'var(--font-number)', fontSize: '1.15rem', fontWeight: 600 }}>
                             {record.value} {record.unit}
                           </span>
                         )}
-                        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', opacity: 0.6 }}>
+                        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.78rem', opacity: 0.6, marginTop: 2 }}>
                           {record.date}
                           {record.time && ` ${record.time}`}
                         </p>
                       </div>
-                      <button onClick={() => deleteGrowthRecord?.(record.id)} className="btn-sm" style={{ color: 'var(--accent)' }} title="刪除">🗑️</button>
+                      <button
+                        onClick={() => handleDeleteGrowth(record.id)}
+                        className="btn-sm"
+                        style={{ color: 'var(--accent)', flexShrink: 0, padding: '4px 8px', marginLeft: '8px' }}
+                        title="刪除"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   );
                 })}
